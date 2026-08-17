@@ -1,0 +1,72 @@
+name: Deploy to Cloudflare Pages
+
+on:
+  workflow_call:
+    inputs:
+      build_env:
+        required: true
+        type: string
+      build_version:
+        required: false
+        type: string
+      cloudflare_branch:
+        required: false
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cf-pages-${{ inputs.build_env }}
+  cancel-in-progress: true
+
+env:
+  CF_PAGES_PROJECT_NAME: rf-propagation
+  CF_PAGES_PRODUCTION_BRANCH: main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Set BUILD_VERSION
+        run: |
+          if [ -n "${{ inputs.build_version }}" ]; then
+            echo "BUILD_VERSION=${{ inputs.build_version }}" >> "$GITHUB_ENV"
+          else
+            echo "BUILD_VERSION=$(git rev-parse --short HEAD)" >> "$GITHUB_ENV"
+          fi
+
+      - name: Build SPA
+        env:
+          BUILD_ENV: ${{ inputs.build_env }}
+          BUILD_VERSION: ${{ env.BUILD_VERSION }}
+        run: npm run build
+
+      - name: Deploy to Cloudflare Pages (preview)
+        if: ${{ inputs.cloudflare_branch != '' }}
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy --branch=${{ inputs.cloudflare_branch }}
+
+      - name: Deploy to Cloudflare Pages (production)
+        if: ${{ inputs.cloudflare_branch == '' }}
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy --branch=${{ env.CF_PAGES_PRODUCTION_BRANCH }}
