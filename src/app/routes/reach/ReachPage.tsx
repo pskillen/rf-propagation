@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Button, Panel, Pill, TextInput } from '../../components/v2/index.ts';
+import SurfaceLayout from '../../components/layout/SurfaceLayout.tsx';
 
 // Temporary kit-sample content, proving the v2 theme actually applies (not
 // just that it compiles) — carried over from phase 5 Slice 1's App.tsx.
@@ -22,9 +23,9 @@ function KitSample() {
 
 export default function ReachPage() {
   return (
-    <>
-      <p>Reach — coverage surface arrives in phase 8.</p>
-      <KitSample />
-    </>
+    <SurfaceLayout
+      controls={<KitSample />}
+      canvas={<p>Reach — coverage surface arrives in phase 8.</p>}
+    />
   );
 }

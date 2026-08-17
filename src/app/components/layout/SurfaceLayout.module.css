@@ -1,0 +1,25 @@
+.root {
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  height: 100%;
+  min-width: 0;
+}
+
+.controls {
+  min-width: 0;
+}
+
+.canvas {
+  min-width: 0;
+  overflow-x: auto;
+}
+
+/* Matches MOBILE_MAX_WIDTH_MEDIA_QUERY from src/app/lib/breakpoints.ts —
+   duplicated as a literal media query since CSS modules can't reference a
+   JS constant directly; see breakpoints.ts for the canonical value. */
+@media (max-width: 48em) {
+  .root {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+  }
+}
