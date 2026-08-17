@@ -1,5 +1,6 @@
 import { createBrowserRouter, Outlet, RouterProvider } from 'react-router-dom';
 import AppChrome from './components/shell/AppChrome.tsx';
+import { ViewerStateProvider } from './state/viewerState.tsx';
 import ReachPage from './routes/reach/ReachPage.tsx';
 import PathPage from './routes/path/PathPage.tsx';
 import TimelinePage from './routes/timeline/TimelinePage.tsx';
@@ -26,5 +27,9 @@ const router = createBrowserRouter([
 ]);
 
 export default function App() {
-  return <RouterProvider router={router} />;
+  return (
+    <ViewerStateProvider>
+      <RouterProvider router={router} />
+    </ViewerStateProvider>
+  );
 }
