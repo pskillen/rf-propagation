@@ -1,1 +1,25 @@
 tmp/
+
+# Secrets and local env
+.env
+.env.*
+!.env.example
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor / IDE (local overrides only)
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+
+# Node / Vite build output
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
