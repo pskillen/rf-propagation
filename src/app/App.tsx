@@ -1,30 +1,30 @@
-import { useState } from 'react';
-import BuildFooter from './components/BuildFooter/BuildFooter.tsx';
-import { Button, Panel, Pill, TextInput } from './components/v2/index.ts';
-import './App.css';
+import { createBrowserRouter, Outlet, RouterProvider } from 'react-router-dom';
+import AppChrome from './components/shell/AppChrome.tsx';
+import ReachPage from './routes/reach/ReachPage.tsx';
+import PathPage from './routes/path/PathPage.tsx';
+import TimelinePage from './routes/timeline/TimelinePage.tsx';
+import ExplorePage from './routes/explore/ExplorePage.tsx';
 
-// Temporary kit-sample content, proving the v2 theme actually applies (not
-// just that it compiles) — per phase 5 Slice 1. Slice 2 replaces this
-// whole file with routing; this sample content moves into ReachPage.tsx.
-export default function App() {
-  const [callsign, setCallsign] = useState('');
+function Shell() {
   return (
-    <div className="app-shell">
-      <main className="app-placeholder">
-        <h1>Propagation Viewer</h1>
-        <p>Coming soon.</p>
-        <Panel title="Kit sample" sub="Proves the v2 dark theme is actually applied">
-          <TextInput
-            label="Callsign"
-            placeholder="e.g. GM4ABC"
-            value={callsign}
-            onChange={(e) => setCallsign(e.currentTarget.value)}
-          />
-          <Pill tone="accent">v2 kit</Pill>
-          <Button variant="primary">Sample button</Button>
-        </Panel>
-      </main>
-      <BuildFooter />
-    </div>
+    <AppChrome>
+      <Outlet />
+    </AppChrome>
   );
+}
+
+const router = createBrowserRouter([
+  {
+    element: <Shell />,
+    children: [
+      { path: '/', element: <ReachPage /> },
+      { path: '/path', element: <PathPage /> },
+      { path: '/timeline', element: <TimelinePage /> },
+      { path: '/explore', element: <ExplorePage /> },
+    ],
+  },
+]);
+
+export default function App() {
+  return <RouterProvider router={router} />;
 }
