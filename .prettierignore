@@ -1,0 +1,11 @@
+dist/
+node_modules/
+coverage/
+
+# Agent skills — maintained with their own formatting conventions, ported
+# verbatim from sibling repos; not part of this repo's app source.
+.skills/
+
+# Pre-existing root docs, out of scope for this phase's toolchain bootstrap.
+AGENTS.md
+README.md
