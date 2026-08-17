@@ -1,0 +1,25 @@
+.root {
+  min-width: 0;
+}
+
+.svg {
+  width: 100%;
+  height: auto;
+  max-width: 320px;
+}
+
+.axis {
+  stroke: var(--dsv2-border);
+  stroke-width: 1;
+}
+
+.line {
+  stroke: var(--dsv2-accent, #4dabf7);
+  stroke-width: 2;
+}
+
+.caption {
+  margin: 4px 0 0;
+  font-size: 0.75em;
+  color: var(--dsv2-text-tertiary);
+}
