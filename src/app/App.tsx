@@ -1,5 +1,6 @@
 import { createBrowserRouter, Outlet, RouterProvider } from 'react-router-dom';
 import AppChrome from './components/shell/AppChrome.tsx';
+import StationBar from './components/station/StationBar.tsx';
 import { ViewerStateProvider } from './state/viewerState.tsx';
 import ReachPage from './routes/reach/ReachPage.tsx';
 import PathPage from './routes/path/PathPage.tsx';
@@ -8,7 +9,7 @@ import ExplorePage from './routes/explore/ExplorePage.tsx';
 
 function Shell() {
   return (
-    <AppChrome>
+    <AppChrome stationBar={<StationBar />}>
       <Outlet />
     </AppChrome>
   );

@@ -20,7 +20,7 @@ engine.
 | App chrome + four-surface routing | Shipped | `AppChrome` (new component, not a port of Studio's project-chip `AppShell.tsx`) + `react-router-dom` v7 data router — [component-kit-and-shell.md](component-kit-and-shell.md) |
 | URL state codec | Shipped | Versioned, field-registry codec; only the `surface` field exists so far — [url-state-codec.md](url-state-codec.md) |
 | Responsive layout skeleton | Shipped | `SurfaceLayout` controls-plus-canvas grid, mounted on all four placeholder surfaces — [component-kit-and-shell.md](component-kit-and-shell.md) |
-| Station bar / Conditions bar content | Not started | Slots reserved on `AppChrome` (`stationBar`/`conditionsBar` props), rendered empty; phase 6 and phase 7 fill them |
+| Station bar / Conditions bar content | Station bar shipped (phase 6), Conditions bar not started | `stationBar` slot filled by `StationBar` (phase 6) — see [Station](../station/README.md); `conditionsBar` still reserved, rendered empty until phase 7 |
 | Any propagation-engine wiring | Not started | This phase imports nothing from `src/core/domain/propagation/` or `src/integrations/propagation/`; Reach (phase 8) is the first surface to call the engine |
 
 ## Documentation map

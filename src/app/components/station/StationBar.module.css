@@ -1,0 +1,74 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--dsv2-border-color, rgba(255, 255, 255, 0.08));
+  min-width: 0;
+}
+
+.compactRow {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.summary {
+  margin: 0;
+  font-size: 0.9em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  flex-shrink: 1;
+}
+
+.powerField {
+  flex-shrink: 0;
+}
+
+.editToggle {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.expanded {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+  padding-top: 4px;
+}
+
+.antennaSection {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 220px);
+  gap: 20px;
+  align-items: start;
+  min-width: 0;
+}
+
+.noiseSection {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.noiseLabel {
+  font-size: 0.85em;
+  color: var(--dsv2-text-secondary);
+}
+
+@media (max-width: 640px) {
+  .antennaSection {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 360px) {
+  .compactRow {
+    gap: 8px;
+  }
+}
