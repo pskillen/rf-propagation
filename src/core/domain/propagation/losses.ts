@@ -75,3 +75,43 @@ export function ionosphericAbsorptionDbPerHop(
     Math.pow(frequencyMhz + D_LAYER_GYROFREQUENCY_MHZ, 1.98)
   );
 }
+
+/**
+ * Ground type for a hop-to-hop bounce. This phase has no terrain data, so
+ * 'mixed' is a flat average of sea/land loss (documented "Assumed" fidelity
+ * tier, physics-and-fidelity.md §7 — "uniform ground") rather than a real
+ * land/sea path breakdown.
+ */
+export type GroundType = 'sea' | 'land' | 'mixed';
+
+/**
+ * Polarisation coupling loss (dB), applied once per path, never per hop.
+ * The receiver is modelled as a reference station with the same antenna
+ * gain as the transmitter (physics-and-fidelity.md §4.3) — that symmetry
+ * assumption lives on the `LinkBudgetInput.rxAntennaGainDbi` doc comment in
+ * linkBudget.ts, not here, since it's a caller-supplied parameter, not a
+ * fixed loss term.
+ */
+export const POLARISATION_LOSS_DB = 3;
+
+const GROUND_REFLECTION_LOSS_DB: Record<GroundType, number> = {
+  sea: 2,
+  land: 4,
+  // Flat average of sea (2dB) and land (4dB) — no terrain data to do
+  // better; see the GroundType doc comment above.
+  mixed: 3,
+};
+
+/**
+ * Ground reflection loss (dB) across every INTERMEDIATE bounce of a
+ * multi-hop path — the hop-to-hop bounces, not the final landing at the
+ * receiver. `intermediateBounceCount` is `hops.length - 1` for an n-hop
+ * path (0 for a single hop, i.e. no ground bounce at all).
+ */
+export function groundReflectionLossDb(
+  groundType: GroundType,
+  intermediateBounceCount: number,
+): number {
+  if (intermediateBounceCount <= 0) return 0;
+  return GROUND_REFLECTION_LOSS_DB[groundType] * intermediateBounceCount;
+}
