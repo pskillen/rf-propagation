@@ -27,7 +27,7 @@ and then guard against those defects.
 | Physics validation harness (V1–V9, V19) | Shipped | Gates CI from phase 2 onward — [geometry-and-layers.md](geometry-and-layers.md) |
 | Link budget (losses, noise, mode thresholds, reliability) | Shipped | EIRP, FSPL, D-layer absorption, ground/polarisation loss, noise floor, per-mode margins, reliability — [link-budget-and-reliability.md](link-budget-and-reliability.md) |
 | Calibration anchors A/B, V10–V18, V20–V23 | Shipped | Full V1–V23 harness gates CI — [link-budget-and-reliability.md](link-budget-and-reliability.md) |
-| Multi-hop path solving, coverage grid, Worker | Not started | Phase 4 |
+| Multi-hop path solving, coverage grid, illustration rays, Worker | Shipped | Coverage grid and illustration rays are separate code paths at separate resolutions — [multihop-coverage-and-rays.md](multihop-coverage-and-rays.md) |
 | UI surfaces (Reach, Explore, Compare, Path/Timeline) | Not started | Later phases; Conditions (time, SFI/Kp source) doesn't exist as a UI surface until phase 7 |
 
 ## Documentation map
@@ -36,6 +36,7 @@ and then guard against those defects.
 | --- | --- |
 | [geometry-and-layers.md](geometry-and-layers.md) | Geometry primitives, layer model, reflection/MUF selection, and the validation harness (phase 2) |
 | [link-budget-and-reliability.md](link-budget-and-reliability.md) | Losses, noise floor, mode thresholds, reliability, and `computeLinkBudget` (phase 3) |
+| [multihop-coverage-and-rays.md](multihop-coverage-and-rays.md) | Multi-hop path solving, the coverage grid, illustration rays, and the coverage-grid Worker (phase 4) |
 
 ## Concepts
 
@@ -48,9 +49,13 @@ and then guard against those defects.
 - **D-layer absorption** — the D layer never reflects (it only absorbs); this is enforced structurally in the reflection-selection code, not by a runtime condition. Its strength (`ionosphericAbsorptionDbPerHop`) is what actually drives the LUF (below).
 - **LUF (lowest usable frequency)** — deliberately *not* computed as a standalone formula; it's emergent from the link budget (absorption driving SNR below a mode's threshold) — see [link-budget-and-reliability.md](link-budget-and-reliability.md).
 - **Reliability** — never a boolean "reachable"; a 0–100% probability combining day-to-day MUF spread and SNR fading, bucketed Good/Marginal/Unlikely — see [link-budget-and-reliability.md](link-budget-and-reliability.md).
+- **Skip zone** — the ring around a station where neither groundwave nor any hop lands; falls out of the coverage grid's data (a cell with no landing) rather than being computed as its own quantity — see [multihop-coverage-and-rays.md](multihop-coverage-and-rays.md).
+- **Groundwave** — near-field coverage close to the station, independent of the ionosphere; an uncalibrated frequency/ground-type approximation at this fidelity tier (no formula is specified in the design doc) — see [multihop-coverage-and-rays.md](multihop-coverage-and-rays.md).
+- **Coverage grid vs illustration rays** — the dense compute grid (fixed 72×90×4-hop resolution, feeds shading) and the illustration rays (an operator-sized, ≤16×≤10 rendering control) are separate code paths at separate resolutions, by design — changing one never changes the other's output. See [multihop-coverage-and-rays.md](multihop-coverage-and-rays.md).
 
 ## Cross-links
 
 - Tracking: [Feature #4 "Propagation engine"](https://github.com/pskillen/rf-propagation/issues/4) (parent epic [#2](https://github.com/pskillen/rf-propagation/issues/2))
 - Task issues (phase 2): [#22](https://github.com/pskillen/rf-propagation/issues/22), [#23](https://github.com/pskillen/rf-propagation/issues/23), [#24](https://github.com/pskillen/rf-propagation/issues/24), [#25](https://github.com/pskillen/rf-propagation/issues/25)
 - Task issues (phase 3): [#26](https://github.com/pskillen/rf-propagation/issues/26)–[#31](https://github.com/pskillen/rf-propagation/issues/31)
+- Task issues (phase 4): [#32](https://github.com/pskillen/rf-propagation/issues/32)–[#36](https://github.com/pskillen/rf-propagation/issues/36)

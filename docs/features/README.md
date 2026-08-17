@@ -6,4 +6,4 @@ these follow.
 
 | Topic | Hub | Status |
 | --- | --- | --- |
-| Propagation engine | [engine/README.md](engine/README.md) | In progress — geometry, layer model, MUF selection, link budget (losses/noise/modes/reliability), and the V1–V23 validation harness are shipped; multi-hop path solving and the coverage grid are not yet built |
+| Propagation engine | [engine/README.md](engine/README.md) | In progress — geometry, layer model, MUF selection, link budget, the V1–V23 validation harness, multi-hop path solving, the coverage grid, illustration rays, and the coverage-grid Worker are shipped; no UI surfaces exist yet |
