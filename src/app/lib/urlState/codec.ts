@@ -1,5 +1,6 @@
 import { DEFAULT_VIEWER_URL_STATE, URL_STATE_VERSION, type ViewerUrlState } from './types.ts';
 import { surfaceFieldCodec } from './fields/surface.ts';
+import { stationFieldCodec } from './fields/station.ts';
 
 export interface UrlStateFieldCodec<K extends keyof ViewerUrlState> {
   key: K;
@@ -17,7 +18,7 @@ export interface UrlStateFieldCodec<K extends keyof ViewerUrlState> {
 // contravariant in its own key's value type) — `any` here is the standard,
 // deliberate escape hatch for that, not a typing shortcut.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const FIELD_CODECS: UrlStateFieldCodec<any>[] = [surfaceFieldCodec];
+const FIELD_CODECS: UrlStateFieldCodec<any>[] = [surfaceFieldCodec, stationFieldCodec];
 
 export function encodeViewerUrlState(state: ViewerUrlState): URLSearchParams {
   const params = new URLSearchParams();

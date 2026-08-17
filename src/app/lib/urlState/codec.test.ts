@@ -6,7 +6,7 @@ const ALL_SURFACES: readonly SurfaceId[] = ['reach', 'path', 'timeline', 'explor
 
 describe('viewer URL state codec', () => {
   it.each(ALL_SURFACES)('round-trips surface=%s', (surface) => {
-    const state: ViewerUrlState = { surface };
+    const state: ViewerUrlState = { surface, station: {} };
     const roundTripped = decodeViewerUrlState(encodeViewerUrlState(state));
     expect(roundTripped).toEqual(state);
   });
@@ -23,7 +23,7 @@ describe('viewer URL state codec', () => {
 
   it('decodes a valid surface at or below the current version', () => {
     const decoded = decodeViewerUrlState(new URLSearchParams('v=1&s=path'));
-    expect(decoded).toEqual({ surface: 'path' });
+    expect(decoded).toEqual({ surface: 'path', station: {} });
   });
 
   it('decodes an empty URLSearchParams to the default state', () => {
@@ -32,13 +32,25 @@ describe('viewer URL state codec', () => {
   });
 
   it('omits the surface param when it is the default (reach), for a shorter URL', () => {
-    const params = encodeViewerUrlState({ surface: 'reach' });
+    const params = encodeViewerUrlState({ surface: 'reach', station: {} });
     expect(params.has('s')).toBe(false);
     expect(params.get('v')).toBe('1');
   });
 
   it('sets the surface param for a non-default surface', () => {
-    const params = encodeViewerUrlState({ surface: 'timeline' });
+    const params = encodeViewerUrlState({ surface: 'timeline', station: {} });
     expect(params.get('s')).toBe('timeline');
+  });
+
+  it('round-trips a state with a station override alongside a non-default surface', () => {
+    const state: ViewerUrlState = {
+      surface: 'explore',
+      station: { pwr: 400, noise: 'urban' },
+    };
+    const roundTripped = decodeViewerUrlState(encodeViewerUrlState(state));
+    expect(roundTripped).toEqual({
+      surface: 'explore',
+      station: { qlat: undefined, qlon: undefined, ant: undefined, pwr: 400, noise: 'urban' },
+    });
   });
 });
