@@ -1,6 +1,7 @@
 // Named antennas as a Pill row with one-click active-antenna switching, plus
-// an "add antenna" form. Every write funnels through `mergeStation`, same
-// as QthPicker.
+// a form shared by "+ Add antenna" and "Edit" (Slice 2, fix/reach-
+// directionality-antenna-greyline -- antennas were create-only before this).
+// Every write funnels through `mergeStation`, same as QthPicker.
 import { useState } from 'react';
 import type { AntennaConfig, AntennaPatternFamily, Station } from '@core/domain/station/types';
 import { mergeStation } from '@integrations/station/persistence';
@@ -28,16 +29,34 @@ const FAMILY_OPTIONS: ComboboxOption<AntennaPatternFamily>[] = [
   { value: 'multi-lobe-conical', label: 'Multi-lobe (long wire)' },
 ];
 
+/**
+ * Pattern families whose gain shape actually uses `phiDeg` (see
+ * `antennaPattern.ts`'s `antennaGain` switch) -- the heading field only
+ * makes sense for these. WIDENED (Slice 2) from `directional-lobe` alone
+ * to also include `bidirectional-transverse`: a dipole's figure-eight has
+ * a real azimuth term (`Math.abs(Math.cos(...))`), the form just never
+ * exposed it. `multi-lobe-conical` stays excluded -- its azimuth term is
+ * unused by the formula (a separate, out-of-scope gap, see this phase's
+ * plan file), so a heading field for it would be a lie.
+ */
+const HEADING_FAMILIES = new Set<AntennaPatternFamily>([
+  'directional-lobe',
+  'bidirectional-transverse',
+]);
+
 function generateAntennaId(): string {
   return `antenna-${Math.random().toString(36).slice(2, 10)}`;
 }
+
+type BuildResult = { ok: true; antenna: AntennaConfig } | { ok: false; error: string };
 
 export default function AntennaList({
   antennas,
   activeAntennaId,
   onStationChange,
 }: AntennaListProps) {
-  const [showAddForm, setShowAddForm] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [familyQuery, setFamilyQuery] = useState('');
   const [family, setFamily] = useState<AntennaPatternFamily | null>(null);
@@ -61,41 +80,95 @@ export default function AntennaList({
     setFormError(null);
   }
 
-  function handleAddAntenna() {
+  function closeForm() {
+    setShowForm(false);
+    setEditingId(null);
+    resetForm();
+  }
+
+  /** Opens the shared form in "+ Add antenna" mode -- a blank draft, not tied to any existing antenna. */
+  function handleStartAdd() {
+    if (showForm && editingId === null) {
+      closeForm();
+      return;
+    }
+    resetForm();
+    setEditingId(null);
+    setShowForm(true);
+  }
+
+  /** Opens the shared form pre-filled with the currently-active antenna's fields (Slice 2's own edit-in-place). */
+  function handleStartEdit() {
+    const activeAntenna = antennas.find((antenna) => antenna.id === activeAntennaId);
+    if (!activeAntenna) return;
+
+    setName(activeAntenna.name);
+    setFamilyQuery('');
+    setFamily(activeAntenna.family);
+    setHeightM(String(activeAntenna.heightM));
+    setAzimuthDeg(String(activeAntenna.azimuthDeg ?? 0));
+    setGainDbi(String(activeAntenna.gainDbi));
+    setFormError(null);
+    setEditingId(activeAntenna.id);
+    setShowForm(true);
+  }
+
+  /** Validates the form fields and builds the `AntennaConfig` they describe -- shared by both add and edit submission. */
+  function buildAntennaFromForm(id: string): BuildResult {
     const trimmedName = name.trim();
     const height = Number(heightM);
     const gain = Number(gainDbi);
     const azimuth = Number(azimuthDeg);
 
     if (!trimmedName) {
-      setFormError('Enter a name for the antenna.');
-      return;
+      return { ok: false, error: 'Enter a name for the antenna.' };
     }
     if (!family) {
-      setFormError('Choose a pattern family.');
-      return;
+      return { ok: false, error: 'Choose a pattern family.' };
     }
     if (!Number.isFinite(height) || height <= 0) {
-      setFormError('Height must be a positive number.');
-      return;
+      return { ok: false, error: 'Height must be a positive number.' };
     }
     if (!Number.isFinite(gain)) {
-      setFormError('Gain must be a number.');
+      return { ok: false, error: 'Gain must be a number.' };
+    }
+
+    return {
+      ok: true,
+      antenna: {
+        id,
+        name: trimmedName,
+        family,
+        heightM: height,
+        gainDbi: gain,
+        ...(HEADING_FAMILIES.has(family) && Number.isFinite(azimuth)
+          ? { azimuthDeg: azimuth }
+          : {}),
+      },
+    };
+  }
+
+  function handleSubmit() {
+    const result = buildAntennaFromForm(editingId ?? generateAntennaId());
+    if (!result.ok) {
+      setFormError(result.error);
       return;
     }
 
-    const newAntenna: AntennaConfig = {
-      id: generateAntennaId(),
-      name: trimmedName,
-      family,
-      heightM: height,
-      gainDbi: gain,
-      ...(family === 'directional-lobe' && Number.isFinite(azimuth) ? { azimuthDeg: azimuth } : {}),
-    };
+    if (editingId) {
+      // Edit in place (Slice 2) -- REPLACES the existing entry, keeping its
+      // id and position, rather than appending a near-duplicate.
+      const updated = result.antenna;
+      onStationChange(
+        mergeStation({
+          antennas: antennas.map((antenna) => (antenna.id === editingId ? updated : antenna)),
+        }),
+      );
+    } else {
+      onStationChange(mergeStation({ antennas: [...antennas, result.antenna] }));
+    }
 
-    onStationChange(mergeStation({ antennas: [...antennas, newAntenna] }));
-    resetForm();
-    setShowAddForm(false);
+    closeForm();
   }
 
   const familyOption = family
@@ -109,6 +182,7 @@ export default function AntennaList({
   );
 
   const antennaOptions = antennas.map((ant) => ({ value: ant.id, label: ant.name }));
+  const showHeadingField = family != null && HEADING_FAMILIES.has(family);
 
   return (
     <div className={classes.root}>
@@ -119,12 +193,15 @@ export default function AntennaList({
           value={activeAntennaId}
           onChange={handleSelectActive}
         />
-        <Pill tone="dashed" onClick={() => setShowAddForm((visible) => !visible)}>
-          {showAddForm ? 'Cancel' : '+ Add antenna'}
+        <Button variant="outline" size="sm" onClick={handleStartEdit}>
+          Edit
+        </Button>
+        <Pill tone="dashed" onClick={handleStartAdd}>
+          {showForm && editingId === null ? 'Cancel' : '+ Add antenna'}
         </Pill>
       </div>
 
-      {showAddForm ? (
+      {showForm ? (
         <div className={classes.form}>
           <FormField label="Name">
             <TextInput
@@ -152,15 +229,17 @@ export default function AntennaList({
             <TextInput
               variant="plain"
               type="number"
+              aria-label="Height above ground (m)"
               value={heightM}
               onChange={(event) => setHeightM(event.target.value)}
             />
           </FormField>
-          {family === 'directional-lobe' ? (
+          {showHeadingField ? (
             <FormField label="Heading (° azimuth)">
               <TextInput
                 variant="plain"
                 type="number"
+                aria-label="Heading (° azimuth)"
                 value={azimuthDeg}
                 onChange={(event) => setAzimuthDeg(event.target.value)}
               />
@@ -170,23 +249,18 @@ export default function AntennaList({
             <TextInput
               variant="plain"
               type="number"
+              aria-label="Gain (dBi)"
               value={gainDbi}
               onChange={(event) => setGainDbi(event.target.value)}
             />
           </FormField>
           {formError ? <span className={classes.error}>{formError}</span> : null}
           <div className={classes.formActions}>
-            <Button
-              variant="secondary"
-              onClick={() => {
-                setShowAddForm(false);
-                resetForm();
-              }}
-            >
+            <Button variant="secondary" onClick={closeForm}>
               Cancel
             </Button>
-            <Button variant="primary" onClick={handleAddAntenna}>
-              Add antenna
+            <Button variant="primary" onClick={handleSubmit}>
+              {editingId ? 'Save changes' : 'Add antenna'}
             </Button>
           </div>
         </div>
