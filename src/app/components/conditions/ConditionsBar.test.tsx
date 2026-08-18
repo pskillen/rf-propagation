@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import DesignSystemV2Provider from '../v2/DesignSystemV2Provider.tsx';
+import { ViewerStateProvider } from '../../state/viewerState.tsx';
 import ConditionsBar from './ConditionsBar.tsx';
 
 const mockFetchLatestSpaceWeather = vi.fn();
@@ -20,9 +21,11 @@ vi.mock('@integrations/conditions/persistence', () => ({
 function renderBar(initialEntry = '/') {
   render(
     <MemoryRouter initialEntries={[initialEntry]}>
-      <DesignSystemV2Provider>
-        <ConditionsBar />
-      </DesignSystemV2Provider>
+      <ViewerStateProvider>
+        <DesignSystemV2Provider>
+          <ConditionsBar />
+        </DesignSystemV2Provider>
+      </ViewerStateProvider>
     </MemoryRouter>,
   );
 }

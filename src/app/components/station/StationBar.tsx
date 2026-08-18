@@ -7,10 +7,17 @@
 // functional in the compact row itself, so "something meaningful can be
 // changed within one interaction of arriving" doesn't depend on the user
 // finding the edit toggle first.
-import { useState } from 'react';
-import { DEFAULT_STATION } from '@core/domain/station/defaults';
+//
+// Station now lives in `ViewerState` (phase 8, Reach — see
+// viewerState.tsx's own doc comment for why), not local `useState`: Reach's
+// live-draggable station marker commits a new QTH via the same shared
+// state, and StationBar must reflect that without a stale local copy.
+// `station`/`setStation` below are just a thin view over the shared
+// context; every mutation still funnels through `mergeStation` for
+// persistence exactly as before.
+import { useCallback, useState } from 'react';
 import type { Station } from '@core/domain/station/types';
-import { loadStation } from '@integrations/station/persistence';
+import { useViewerState } from '../../state/viewerState.tsx';
 import { Button, Panel } from '../v2/index.ts';
 import AntennaList from './AntennaList.tsx';
 import AntennaPatternPreview from './AntennaPatternPreview.tsx';
@@ -19,12 +26,13 @@ import PowerInput from './PowerInput.tsx';
 import QthPicker from './QthPicker.tsx';
 import classes from './StationBar.module.css';
 
-function initialStation(): Station {
-  return loadStation() ?? DEFAULT_STATION;
-}
-
 export default function StationBar() {
-  const [station, setStation] = useState<Station>(initialStation);
+  const { state, setState } = useViewerState();
+  const station = state.station;
+  const setStation = useCallback(
+    (next: Station) => setState((prev) => ({ ...prev, station: next })),
+    [setState],
+  );
   const [editing, setEditing] = useState(false);
 
   const activeAntenna =

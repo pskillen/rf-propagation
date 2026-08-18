@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { bandFromFrequencyMhz, isAmateurBand, UK_AMATEUR_BANDS } from './bandCatalog.ts';
+import {
+  bandFromFrequencyMhz,
+  bandMidpointMhz,
+  isAmateurBand,
+  UK_AMATEUR_BANDS,
+} from './bandCatalog.ts';
 
 const EXPECTED_BANDS: Array<{ id: string; minMhz: number; maxMhz: number }> = [
   { id: '160m', minMhz: 1.81, maxMhz: 2.0 },
@@ -57,5 +62,16 @@ describe('bandFromFrequencyMhz', () => {
     expect(bandFromFrequencyMhz(NaN)).toBeNull();
     expect(bandFromFrequencyMhz(0)).toBeNull();
     expect(bandFromFrequencyMhz(-14)).toBeNull();
+  });
+});
+
+describe('bandMidpointMhz', () => {
+  it.each(EXPECTED_BANDS)('returns $id’s midpoint, rounded to kHz', ({ id, minMhz, maxMhz }) => {
+    const expected = Math.round(((minMhz + maxMhz) / 2) * 1000) / 1000;
+    expect(bandMidpointMhz(id)).toBeCloseTo(expected, 6);
+  });
+
+  it('falls back to the first catalogue entry for an unknown band id', () => {
+    expect(bandMidpointMhz('bogus')).toBe(bandMidpointMhz(UK_AMATEUR_BANDS[0].id));
   });
 });

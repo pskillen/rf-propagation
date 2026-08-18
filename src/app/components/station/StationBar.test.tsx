@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import DesignSystemV2Provider from '../v2/DesignSystemV2Provider.tsx';
 import { DEFAULT_STATION } from '@core/domain/station/defaults';
+import { ViewerStateProvider } from '../../state/viewerState.tsx';
 import StationBar from './StationBar.tsx';
 
 vi.mock('./QthMap.tsx', () => ({
@@ -14,9 +15,11 @@ beforeEach(() => {
 
 function renderBar() {
   return render(
-    <DesignSystemV2Provider>
-      <StationBar />
-    </DesignSystemV2Provider>,
+    <ViewerStateProvider>
+      <DesignSystemV2Provider>
+        <StationBar />
+      </DesignSystemV2Provider>
+    </ViewerStateProvider>,
   );
 }
 

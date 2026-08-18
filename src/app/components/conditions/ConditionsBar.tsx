@@ -8,24 +8,21 @@
 import { useEffect, useState } from 'react';
 import { useDebouncedValue } from '@mantine/hooks';
 import type { GroundType } from '@core/domain/propagation/losses';
+import type { Conditions } from '@core/domain/conditions/types';
 import { DEFAULT_CONDITIONS } from '@core/domain/conditions/defaults';
-import { UK_AMATEUR_BANDS } from '@core/domain/bandCatalog';
+import { UK_AMATEUR_BANDS, bandMidpointMhz } from '@core/domain/bandCatalog';
 import { conditionsUrlStateToInitialTime } from '../../lib/urlState/fields/conditions.ts';
 import type { ConditionsUrlState } from '../../lib/urlState/types.ts';
 import { useConditions } from '../../hooks/useConditions.ts';
 import { describeDriverProvenance, useConditionsDriver } from '../../hooks/useConditionsDriver.ts';
 import { useViewerUrlState } from '../../hooks/useViewerUrlState.ts';
+import { useViewerState } from '../../state/viewerState.tsx';
 import { Button, SegmentedControl, type SegmentedControlOption } from '../v2/index.ts';
 import BandChips from './BandChips.tsx';
 import FrequencyField from './FrequencyField.tsx';
 import ManualDriverFields from './ManualDriverFields.tsx';
 import TimeScrubber from './TimeScrubber.tsx';
 import classes from './ConditionsBar.module.css';
-
-function bandMidpointMhz(bandId: string): number {
-  const band = UK_AMATEUR_BANDS.find((b) => b.id === bandId) ?? UK_AMATEUR_BANDS[0];
-  return Math.round(((band.minMhz + band.maxMhz) / 2) * 1000) / 1000;
-}
 
 // Matches the address-search field's own debounce interval
 // (`QthPicker.tsx`'s `ADDRESS_SEARCH_DEBOUNCE_MS`) — "debounce the write,
@@ -43,6 +40,7 @@ const GROUND_OPTIONS: SegmentedControlOption<GroundType>[] = [
 
 export default function ConditionsBar() {
   const { state: urlState, setState: setUrlState } = useViewerUrlState();
+  const { setState: setViewerState } = useViewerState();
 
   // Seeded once from the URL at first mount (a shared permalink's
   // Conditions override is respected on first paint) — not continuously
@@ -93,6 +91,40 @@ export default function ConditionsBar() {
     // render's `urlState` when this does run.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedAtMs, liveNow, driver.kind, driver.sfi, driver.kp, ground, bandId]);
+
+  // Publishes the live (non-debounced) Conditions/band/frequency into
+  // ViewerState (phase 8, Reach — see viewerState.tsx's own doc comment)
+  // so surfaces outside this bar (Reach's coverage grid, later Path/
+  // Timeline/Explore) can read the operator's current Conditions without
+  // reaching into this component's local hooks. Deliberately UNDEBOUNCED
+  // and separate from the URL-write effect above: "debouncing applies to
+  // persistence, never to rendering" (phase 8's own Slice 1 note) — a drag
+  // or scrub must animate the coverage surface immediately, the permalink
+  // query string is the only thing allowed to lag. Depends on `driver`'s
+  // primitive fields (not the `driver` object itself, which
+  // `useConditionsDriver` reconstructs fresh every render) for the same
+  // reason the URL-write effect above does.
+  useEffect(() => {
+    const conditions: Conditions = {
+      atMs,
+      liveNow,
+      driver,
+      ground,
+    };
+    setViewerState((prev) => ({ ...prev, conditions, bandId, frequencyMhz }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    atMs,
+    liveNow,
+    driver.kind,
+    driver.sfi,
+    driver.kp,
+    driver.fetchedAtMs,
+    ground,
+    bandId,
+    frequencyMhz,
+    setViewerState,
+  ]);
 
   const provenance = describeDriverProvenance(driver);
 

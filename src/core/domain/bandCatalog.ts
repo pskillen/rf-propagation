@@ -131,6 +131,21 @@ export function isAmateurBand(band: BandDefinition): boolean {
 }
 
 /**
+ * Midpoint frequency (MHz) for a band id, rounded to kHz — the default
+ * operating frequency shown/used whenever a surface only has a band
+ * selection and needs a concrete `frequencyMhz` for the engine. Falls back
+ * to the first catalogue entry for an unknown id, mirroring
+ * `bandFromFrequencyMhz`'s own no-throw convention. Extracted (phase 8)
+ * from `ConditionsBar.tsx`'s previously-inline `bandMidpointMhz` so
+ * `ViewerStateProvider`'s initial state (phase 8, Reach) can compute the
+ * same value without duplicating the formula.
+ */
+export function bandMidpointMhz(bandId: string): number {
+  const band = UK_AMATEUR_BANDS.find((b) => b.id === bandId) ?? UK_AMATEUR_BANDS[0];
+  return Math.round(((band.minMhz + band.maxMhz) / 2) * 1000) / 1000;
+}
+
+/**
  * `UK_AMATEUR_BANDS` is already in ascending-frequency order, so a
  * simple linear scan (matching Studio's own `ALL_BANDS` scan) is enough
  * — no need for the broader `ALL_BANDS` combined-and-sorted array
