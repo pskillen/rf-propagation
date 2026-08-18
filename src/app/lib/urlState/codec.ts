@@ -3,6 +3,7 @@ import { surfaceFieldCodec } from './fields/surface.ts';
 import { stationFieldCodec } from './fields/station.ts';
 import { conditionsFieldCodec } from './fields/conditions.ts';
 import { bandFieldCodec } from './fields/band.ts';
+import { targetFieldCodec } from './fields/target.ts';
 
 export interface UrlStateFieldCodec<K extends keyof ViewerUrlState> {
   key: K;
@@ -12,8 +13,8 @@ export interface UrlStateFieldCodec<K extends keyof ViewerUrlState> {
 
 // The ONLY edit later phases make to this file: append their field codec here.
 // Phase 6 appends stationFieldCodec; phase 7 appends conditionsFieldCodec and
-// bandFieldCodec. Each codec's own encode/decode logic lives in its own file
-// under ./fields/ and is written once.
+// bandFieldCodec; phase 8 appends targetFieldCodec. Each codec's own
+// encode/decode logic lives in its own file under ./fields/ and is written once.
 //
 // A heterogeneous registry of per-key codecs has no key-safe element type in
 // TypeScript's structural system (each codec's encode parameter is
@@ -25,6 +26,7 @@ const FIELD_CODECS: UrlStateFieldCodec<any>[] = [
   stationFieldCodec,
   conditionsFieldCodec,
   bandFieldCodec,
+  targetFieldCodec,
 ];
 
 export function encodeViewerUrlState(state: ViewerUrlState): URLSearchParams {

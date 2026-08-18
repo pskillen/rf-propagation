@@ -93,7 +93,11 @@ function initialViewerState(): ViewerState {
     conditions: DEFAULT_CONDITIONS,
     bandId: decoded.bandId,
     frequencyMhz: bandMidpointMhz(decoded.bandId),
-    target: null,
+    // A shared link's target (Slice 5, F5.5) round-trips through the URL
+    // codec even though this phase's own UI never writes `source` values
+    // other than 'map-click' -- see TargetUrlState's own doc comment for
+    // why `label`/`source` are lossy across a permalink.
+    target: decoded.target ? { ...decoded.target, source: 'map-click' } : null,
   };
 }
 

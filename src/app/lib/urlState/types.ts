@@ -45,17 +45,35 @@ export interface ConditionsUrlState {
 }
 
 /**
+ * The URL's lossy view of `ViewerState.target` (`@app/state/viewerState`).
+ * `label`/`source` don't round-trip: `label` is a display-only convenience
+ * (re-derivable, not load-bearing for what the target IS), and `source`
+ * is always `'map-click'` for anything this phase's codec can produce —
+ * Path's own target picker (phase 13) is expected to widen this codec
+ * when it adds sources a shared link actually needs to distinguish.
+ * Absent (`undefined`) means "no target" (`ViewerState.target === null`),
+ * matching `StationUrlState`/`ConditionsUrlState`'s own "absent means
+ * default" convention.
+ */
+export interface TargetUrlState {
+  lat: number;
+  lon: number;
+}
+
+/**
  * Grows by one optional-in-spirit field per phase (phase 6 adds `station`,
- * phase 7 adds `conditions` and `bandId`, etc. — see ux-and-ia.md §6 for the
- * eventual full shape). Each addition is a new property on this interface
- * plus a new field-codec module registered in codec.ts's FIELD_CODECS array
- * — never a change to an existing property or an existing field-codec's logic.
+ * phase 7 adds `conditions` and `bandId`, phase 8 adds `target`, etc. —
+ * see ux-and-ia.md §6 for the eventual full shape). Each addition is a new
+ * property on this interface plus a new field-codec module registered in
+ * codec.ts's FIELD_CODECS array — never a change to an existing property
+ * or an existing field-codec's logic.
  */
 export interface ViewerUrlState {
   surface: SurfaceId;
   station: StationUrlState;
   conditions: ConditionsUrlState;
   bandId: string;
+  target?: TargetUrlState;
 }
 
 export const URL_STATE_VERSION = 1;

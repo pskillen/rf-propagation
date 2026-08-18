@@ -19,11 +19,16 @@ function fixtureResult(): CoverageGridResult {
   };
 }
 
-const NO_COVERAGE_PROPS = {
+const DEFAULT_PROPS = {
   coverageResult: null,
   coveragePass: null,
   coverageStation: null,
-} satisfies Pick<ReachMapProps, 'coverageResult' | 'coveragePass' | 'coverageStation'>;
+  target: null,
+  onMapClick: () => {},
+} satisfies Pick<
+  ReachMapProps,
+  'coverageResult' | 'coveragePass' | 'coverageStation' | 'target' | 'onMapClick'
+>;
 
 describe('ReachMap', () => {
   it('renders the station marker and OSM tiles', async () => {
@@ -32,7 +37,7 @@ describe('ReachMap', () => {
         station={DEFAULT_STATION}
         onStationDrag={() => {}}
         onStationDragEnd={() => {}}
-        {...NO_COVERAGE_PROPS}
+        {...DEFAULT_PROPS}
       />,
     );
 
@@ -53,7 +58,7 @@ describe('ReachMap', () => {
         station={DEFAULT_STATION}
         onStationDrag={onStationDrag}
         onStationDragEnd={onStationDragEnd}
-        {...NO_COVERAGE_PROPS}
+        {...DEFAULT_PROPS}
         markerRef={(instance) => {
           markerInstance = instance;
         }}
@@ -89,7 +94,7 @@ describe('ReachMap', () => {
         station={DEFAULT_STATION}
         onStationDrag={() => {}}
         onStationDragEnd={() => {}}
-        {...NO_COVERAGE_PROPS}
+        {...DEFAULT_PROPS}
       />,
     );
 
@@ -102,6 +107,7 @@ describe('ReachMap', () => {
         station={DEFAULT_STATION}
         onStationDrag={() => {}}
         onStationDragEnd={() => {}}
+        {...DEFAULT_PROPS}
         coverageResult={fixtureResult()}
         coveragePass="fine"
         coverageStation={{ lat: DEFAULT_STATION.qth.lat, lon: DEFAULT_STATION.qth.lon }}
@@ -115,6 +121,52 @@ describe('ReachMap', () => {
     await waitFor(() => {
       const canvas = container.querySelector('canvas.reach-coverage-canvas') as HTMLCanvasElement;
       expect(canvas.style.opacity).toBe('1');
+    });
+  });
+
+  it('a map click (not drag) calls onMapClick with the clicked lat/lon (Slice 5)', async () => {
+    const onMapClick = vi.fn();
+    let mapInstance: L.Map | null = null;
+
+    render(
+      <ReachMap
+        station={DEFAULT_STATION}
+        onStationDrag={() => {}}
+        onStationDragEnd={() => {}}
+        {...DEFAULT_PROPS}
+        onMapClick={onMapClick}
+        mapRef={(instance) => {
+          mapInstance = instance;
+        }}
+      />,
+    );
+
+    await waitFor(() => expect(mapInstance).not.toBeNull());
+
+    const CLICK_LAT = 51.2;
+    const CLICK_LON = -3.1;
+    // Firing `click` directly on the real Leaflet Map instance (same
+    // rationale as the marker drag test above) -- exercises the same
+    // useMapEvents handler this component registers, without simulating
+    // real pointer-to-latlng geometry jsdom can't drive.
+    mapInstance!.fire('click', { latlng: { lat: CLICK_LAT, lng: CLICK_LON } });
+
+    expect(onMapClick).toHaveBeenCalledWith(CLICK_LAT, CLICK_LON);
+  });
+
+  it('renders a target marker distinct from the station marker when a target is set', async () => {
+    const { container } = render(
+      <ReachMap
+        station={DEFAULT_STATION}
+        onStationDrag={() => {}}
+        onStationDragEnd={() => {}}
+        {...DEFAULT_PROPS}
+        target={{ lat: 51.2, lon: -3.1 }}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(container.querySelectorAll('.leaflet-marker-icon')).toHaveLength(2);
     });
   });
 });

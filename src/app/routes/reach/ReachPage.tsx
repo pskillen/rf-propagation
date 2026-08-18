@@ -10,6 +10,7 @@ import SurfaceLayout from '../../components/layout/SurfaceLayout.tsx';
 import CoverageLegend from '../../components/reach/CoverageLegend.tsx';
 import ReachMap from '../../components/reach/ReachMap.tsx';
 import ReachSummaryStrip from '../../components/reach/ReachSummaryStrip.tsx';
+import TargetPanel from '../../components/reach/TargetPanel.tsx';
 import { useBestBandNow } from '../../components/reach/useBestBandNow.ts';
 import { useReachCoverage } from '../../components/reach/useReachCoverage.ts';
 import { useViewerState } from '../../state/viewerState.tsx';
@@ -17,7 +18,7 @@ import classes from './ReachPage.module.css';
 
 export default function ReachPage() {
   const { state, setState } = useViewerState();
-  const { station, conditions, frequencyMhz } = state;
+  const { station, conditions, frequencyMhz, target } = state;
 
   // The live-drag position, distinct from `station.qth` (which only
   // updates on `dragend`) -- Slice 2's coverage grid is computed FOR this
@@ -62,10 +63,32 @@ export default function ReachPage() {
 
   const coverageStation = dragQth ?? station.qth;
 
+  // Cell selection sets a target (F5.5, Slice 5) -- "record a target,"
+  // not build a Path view (phase 13's job). `source: 'map-click'` is the
+  // only source this phase produces; Path's own target picker (phase 13)
+  // adds locator/coordinates/place-name entry as additional sources on
+  // top of this, per this phase's own cross-phase note.
+  const handleMapClick = useCallback(
+    (lat: number, lon: number) => {
+      setState((prev) => ({
+        ...prev,
+        target: { lat, lon, label: undefined, source: 'map-click' },
+      }));
+    },
+    [setState],
+  );
+
+  const handleClearTarget = useCallback(() => {
+    setState((prev) => ({ ...prev, target: null }));
+  }, [setState]);
+
   return (
     <SurfaceLayout
       controls={
         <div className={classes.controls}>
+          {target ? (
+            <TargetPanel station={station.qth} target={target} onClear={handleClearTarget} />
+          ) : null}
           <ReachSummaryStrip coverageResult={result} bandRankings={bandRankings} />
           <CoverageLegend />
         </div>
@@ -78,6 +101,8 @@ export default function ReachPage() {
           coverageResult={result}
           coveragePass={pass}
           coverageStation={coverageStation}
+          target={target}
+          onMapClick={handleMapClick}
         />
       }
     />

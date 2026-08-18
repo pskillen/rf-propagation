@@ -11,7 +11,7 @@
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { useEffect, useRef, type Ref } from 'react';
-import { MapContainer, Marker, TileLayer, useMap } from 'react-leaflet';
+import { MapContainer, Marker, TileLayer, useMap, useMapEvents } from 'react-leaflet';
 import type { Station } from '@core/domain/station/types';
 import type { CoverageGridResult } from '@core/domain/propagation/coverageGrid';
 import { CoverageCanvasLayer, type CoveragePass } from './CoverageCanvasLayer.ts';
@@ -30,6 +30,31 @@ const STATION_ICON: L.DivIcon = L.divIcon({
   iconSize: [16, 16],
   iconAnchor: [8, 8],
 });
+
+const TARGET_ICON: L.DivIcon = L.divIcon({
+  className: classes.targetMarkerWrap,
+  html: `<div class="${classes.targetMarker}"></div>`,
+  iconSize: [16, 16],
+  iconAnchor: [8, 8],
+});
+
+/**
+ * Cell selection sets a target (F5.5, Slice 5) -- the map's own `click`
+ * event, distinct from the Marker's `drag`/`dragend` events above (Leaflet
+ * scopes drag events to the marker target, so the two don't conflict, per
+ * the phase plan's own note). `useMapEvents` (not `eventHandlers` on a
+ * component, since there's no `<Map>` component to attach one to) is the
+ * react-leaflet pattern this repo's own QthMap.tsx already uses for the
+ * same click-to-place shape.
+ */
+function ClickToTarget({ onMapClick }: { onMapClick: (lat: number, lon: number) => void }) {
+  useMapEvents({
+    click(event) {
+      onMapClick(event.latlng.lat, event.latlng.lng);
+    },
+  });
+  return null;
+}
 
 export interface CoverageLayerProps {
   result: CoverageGridResult | null;
@@ -97,8 +122,14 @@ export interface ReachMapProps {
   coveragePass: CoveragePass | null;
   /** The station point `coverageResult` was actually computed for -- the live-drag position while dragging, `station.qth` otherwise. */
   coverageStation: { lat: number; lon: number } | null;
+  /** The currently-recorded target (Slice 5, F5.5) -- `null` when un-targeted. */
+  target: { lat: number; lon: number } | null;
+  /** Fires on a map click/tap (not drag) -- sets the target (Slice 5). */
+  onMapClick: (lat: number, lon: number) => void;
   /** Test seam only -- lets tests reach the underlying Leaflet Marker instance to fire drag/dragend without simulating real pointer geometry (jsdom has no layout engine). */
   markerRef?: Ref<L.Marker>;
+  /** Test seam only -- same rationale as `markerRef`, for the map's own `click` event. */
+  mapRef?: Ref<L.Map>;
 }
 
 export default function ReachMap({
@@ -108,11 +139,15 @@ export default function ReachMap({
   coverageResult,
   coveragePass,
   coverageStation,
+  target,
+  onMapClick,
   markerRef,
+  mapRef,
 }: ReachMapProps) {
   return (
     <div className={classes.wrapper}>
       <MapContainer
+        ref={mapRef}
         center={[station.qth.lat, station.qth.lon]}
         zoom={DEFAULT_ZOOM}
         className={classes.map}
@@ -141,6 +176,8 @@ export default function ReachMap({
             },
           }}
         />
+        {target ? <Marker position={[target.lat, target.lon]} icon={TARGET_ICON} /> : null}
+        <ClickToTarget onMapClick={onMapClick} />
         <MapResizeFix />
       </MapContainer>
     </div>
