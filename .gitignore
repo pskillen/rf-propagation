@@ -1,5 +1,8 @@
 tmp/
 
+# Claude Code isolated worktrees (not project agents)
+.claude/worktrees/
+
 # Secrets and local env
 .env
 .env.*
