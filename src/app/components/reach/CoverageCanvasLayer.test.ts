@@ -106,4 +106,43 @@ describe('CoverageCanvasLayer', () => {
     const layer = new CoverageCanvasLayer();
     expect(() => layer.setResult(fixtureResult(), STATION)).not.toThrow();
   });
+
+  it('keeps a cell straddling the antimeridian continuous instead of jumping ~360deg', () => {
+    // Station just west of the dateline; azimuth wedge 45-90deg from it has
+    // corners whose *raw* (independently-normalised) longitudes land on
+    // opposite sides of the +-180 seam: [179.5, 179.5, -153.5, -160.7].
+    // Without unwrapping, that's a ~340deg spread -- exactly the bug that
+    // stretched a cell's fill across the whole visible map. Unwrapped, the
+    // same corners span ~27deg, matching the real ~45deg wedge at 3000km.
+    const station = { latDeg: 0, lonDeg: 179.5 };
+    const azimuthCount = 8;
+    const rangeBinCount = 1;
+    const result: CoverageGridResult = {
+      azimuthCount,
+      rangeBinCount,
+      rangeBinKm: 3000,
+      reliability: Float32Array.from({ length: azimuthCount }, () => 0.5),
+      snrDb: new Float32Array(azimuthCount),
+      hopCount: Uint8Array.from({ length: azimuthCount }, () => 1),
+    };
+
+    const calls: { lat: number; lng: number }[] = [];
+    const map = fakeMap();
+    const originalProject = map.latLngToContainerPoint.bind(map);
+    map.latLngToContainerPoint = (latlng: L.LatLngExpression) => {
+      const { lat, lng } = L.latLng(latlng);
+      calls.push({ lat, lng });
+      return originalProject(latlng);
+    };
+
+    const layer = new CoverageCanvasLayer();
+    layer.onAdd(map);
+    layer.setResult(result, station);
+
+    // Cells are drawn in az-major order, 4 corners each, rangeBinCount=1 ->
+    // azimuth index 1 (bearing 45-90deg) is the 2nd cell drawn: calls[4..7].
+    const cellLngs = calls.slice(4, 8).map((c) => c.lng);
+    const span = Math.max(...cellLngs) - Math.min(...cellLngs);
+    expect(span).toBeLessThan(100); // real wedge is ~27deg; the pre-fix bug produced ~340deg
+  });
 });

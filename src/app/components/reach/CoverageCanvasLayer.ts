@@ -16,6 +16,7 @@
 import L from 'leaflet';
 import type { CoverageGridResult } from '@core/domain/propagation/coverageGrid';
 import type { GeoPoint } from '@core/domain/propagation/greatCircle';
+import { unwrapLongitudeRelativeTo } from '../../lib/geo/unwrapLongitude.ts';
 import { cellFillStyle } from './cellFillStyle.ts';
 import { cellCorners, type CellGridShape } from './coverageCellProjection.ts';
 
@@ -109,9 +110,19 @@ export class CoverageCanvasLayer extends L.Layer {
         if (!style) continue; // skip zone / no coverage — deliberately no fill, see cellFillStyle.ts
 
         const corners = cellCorners(station, shape, az, bin);
-        const points = corners.map((corner) =>
-          map.latLngToContainerPoint([corner.latDeg, corner.lonDeg]),
-        );
+        // Each corner's longitude was normalised to (-180, 180] independently
+        // by destinationPoint, so a cell straddling the antimeridian can have
+        // corners on opposite sides of that seam even though they're metres
+        // apart on the ground -- unwrap each corner relative to the previous
+        // one (chained through the quad) so the polygon stays continuous in
+        // screen space instead of stretching across the whole map. See
+        // unwrapLongitude.ts's doc comment.
+        let referenceLonDeg = corners[0].lonDeg;
+        const points = corners.map((corner) => {
+          const lonDeg = unwrapLongitudeRelativeTo(corner.lonDeg, referenceLonDeg);
+          referenceLonDeg = lonDeg;
+          return map.latLngToContainerPoint([corner.latDeg, lonDeg]);
+        });
 
         ctx.beginPath();
         ctx.moveTo(points[0].x, points[0].y);
