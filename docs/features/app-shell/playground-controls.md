@@ -224,6 +224,64 @@ check per view.
 the sandbox banner; toggling back off immediately clamps the frequency
 to 7.2 MHz (the band's own max) and the banner disappears.
 
+## Slice 4 — Permalink (F7.4)
+
+**A gap found while wiring this, not assumed.** Before this slice,
+nothing in the app actually wrote a COMPLETE `ViewerUrlState` anywhere:
+`ConditionsBar`'s own url-write effect only ever wrote the two fields it
+owns (`conditions`/`bandId`) on top of whatever was already in the
+address bar; Station never wrote to the URL live at all (localStorage
+only); target/globe-toggle changes only ever wrote `ViewerState`, never
+the URL. Worse: `stationFieldCodec` could already DECODE a Station
+override from a URL, but `ViewerStateProvider`'s `initialViewerState`
+never applied the decoded value to anything — a shared link's Station
+override silently did nothing. Both gaps are closed here, since this is
+the first slice that actually needs the full round-trip to work.
+
+**Building the permalink.** `viewerStateToUrlState` (new,
+`src/app/lib/urlState/fromViewerState.ts`) maps the CURRENT, complete
+`ViewerState` into a `ViewerUrlState` fresh, every time — not a read of
+whatever partial state happens to be in the router. Every field omits
+itself when it matches the corresponding default (shorter URLs for an
+unmodified scenario), the same "override only" contract every field
+codec's own `encode` already follows. `ShareButton` calls
+`encodeViewerUrlState(viewerStateToUrlState(state))`, builds a full URL
+from `window.location.origin` + `pathname` + the encoded params, and
+copies it via `navigator.clipboard.writeText`, swapping its own icon/
+label to "Link copied" for ~2s as confirmation (no toast component
+exists in this kit yet).
+
+**Applying a station override on load.** `applyStationUrlOverrides`
+(new, in `viewerState.tsx`) layers `qlat`/`qlon`/`pwr`/`noise` directly
+onto the loaded-or-default `Station`, recomputing the locator to stay
+consistent with overridden coordinates. `ant` (the active antenna's
+pattern family) is the lossiest field, per `StationUrlState`'s own doc
+comment ("enough to reconstruct a PLAUSIBLE antenna," not the exact
+one): rather than fabricating a new antenna config from a bare family
+name (no height/gain/heading travels in the URL to build one with), this
+looks for an antenna already in the array with a matching `family` and
+activates THAT one; with no match, the override is silently dropped — a
+documented lossy edge, not a crash.
+
+**Realism-unlock round-trips too.** `playbackFieldCodec` (new field
+codec, `ru` param) carries `playback.unrealismUnlocked` — the one field
+`playback` actually persists (`playing`/`speedMultiplier` never do, per
+Slice 1). `initialViewerState` applies it the same way every other field
+does (`?? DEFAULT_PLAYBACK.unrealismUnlocked`).
+
+**"A link from an older version loads with sane defaults" (F7.4's own
+AC):** verified at this slice's own boundary, not just trusted from
+phase 5 — `codec.test.ts` decodes a query string with no `playback` key
+at all (an "older version" stand-in) and asserts it degrades to
+`{ unrealismUnlocked: undefined }` rather than throwing, exercising the
+exact mechanism (`decodeViewerUrlState`'s per-field defaulting) a real
+old link would hit.
+
+**Verified live** (`npm run dev`): set TX power to 400 W, click
+"Copy share link," open the copied URL fresh — TX power shows 400 W.
+Separately, opening a URL with `?ru=1` shows the realism-unlock toggle
+already on.
+
 ## Known gaps
 
 - **No dedicated `ReachPage`-level integration test for
@@ -238,3 +296,12 @@ to 7.2 MHz (the band's own max) and the banner disappears.
   keeps that value until it becomes active; scoped out of this phase
   given the time budget (no antenna-delete or per-antenna clamp sweep
   exists to model this against either).
+- **The permalink's `surface` param doesn't drive navigation.** Per
+  `AppChrome`'s own doc comment (phase 5), `surface`/routing is entirely
+  pathname-driven; a shared link's `s` param is decoded into
+  `ViewerState.surface` but nothing reads that field to navigate.
+  `ShareButton` sidesteps this by building the share URL from the
+  CURRENT `window.location.pathname` (so the recipient lands on the
+  right route regardless), but a hand-edited `s` param on an otherwise
+  cross-surface link would not, by itself, navigate anywhere — unchanged
+  from phase 5, not a regression introduced here.

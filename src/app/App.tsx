@@ -6,6 +6,7 @@ import { bandMidpointMhz } from '@core/domain/bandCatalog';
 import { saveStation } from '@integrations/station/persistence';
 import AppChrome from './components/shell/AppChrome.tsx';
 import ResetButton from './components/shell/ResetButton.tsx';
+import ShareButton from './components/shell/ShareButton.tsx';
 import StationBar from './components/station/StationBar.tsx';
 import ConditionsBar from './components/conditions/ConditionsBar.tsx';
 import TransportControl from './components/TransportControl/TransportControl.tsx';
@@ -73,6 +74,7 @@ function Shell() {
   return (
     <AppChrome
       resetButton={<ResetButton onReset={handleReset} />}
+      shareButton={<ShareButton />}
       stationBar={<StationBar key={resetNonce} />}
       conditionsBar={
         <ConditionsBar

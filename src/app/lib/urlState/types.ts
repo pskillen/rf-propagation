@@ -79,12 +79,27 @@ export interface GlobeUrlState {
 }
 
 /**
+ * The URL's lossy view of `ViewerState.playback` (`@app/state/playback`,
+ * phase 10's Slice 4, F7.4). Only `unrealismUnlocked` round-trips —
+ * `playing`/`speedMultiplier` are deliberately never persisted anywhere
+ * (see `playback.ts`'s own doc comment: "nobody wants to reopen the tab
+ * into a running animation"), so there is nothing else for this codec to
+ * carry. Absent means "locked" (`DEFAULT_PLAYBACK.unrealismUnlocked ===
+ * false`), same "absent means default" convention as every other field
+ * codec here.
+ */
+export interface PlaybackUrlState {
+  unrealismUnlocked?: boolean;
+}
+
+/**
  * Grows by one optional-in-spirit field per phase (phase 6 adds `station`,
  * phase 7 adds `conditions` and `bandId`, phase 8 adds `target`, phase 9
- * adds `globe`, etc. — see ux-and-ia.md §6 for the eventual full shape).
- * Each addition is a new property on this interface plus a new
- * field-codec module registered in codec.ts's FIELD_CODECS array — never
- * a change to an existing property or an existing field-codec's logic.
+ * adds `globe`, phase 10 adds `playback`, etc. — see ux-and-ia.md §6 for
+ * the eventual full shape). Each addition is a new property on this
+ * interface plus a new field-codec module registered in codec.ts's
+ * FIELD_CODECS array — never a change to an existing property or an
+ * existing field-codec's logic.
  */
 export interface ViewerUrlState {
   surface: SurfaceId;
@@ -93,6 +108,7 @@ export interface ViewerUrlState {
   bandId: string;
   target?: TargetUrlState;
   globe: GlobeUrlState;
+  playback: PlaybackUrlState;
 }
 
 export const URL_STATE_VERSION = 1;
@@ -111,4 +127,5 @@ export const DEFAULT_VIEWER_URL_STATE: ViewerUrlState = {
   conditions: {},
   bandId: DEFAULT_BAND_ID,
   globe: {},
+  playback: {},
 };

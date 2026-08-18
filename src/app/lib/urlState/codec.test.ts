@@ -26,6 +26,10 @@ const EMPTY_GLOBE: ViewerUrlState['globe'] = {
   mapMode: undefined,
 };
 
+const EMPTY_PLAYBACK: ViewerUrlState['playback'] = {
+  unrealismUnlocked: undefined,
+};
+
 describe('viewer URL state codec', () => {
   it.each(ALL_SURFACES)('round-trips surface=%s', (surface) => {
     const state: ViewerUrlState = {
@@ -34,9 +38,15 @@ describe('viewer URL state codec', () => {
       conditions: {},
       bandId: DEFAULT_BAND_ID,
       globe: {},
+      playback: {},
     };
     const roundTripped = decodeViewerUrlState(encodeViewerUrlState(state));
-    expect(roundTripped).toEqual({ ...state, conditions: EMPTY_CONDITIONS, globe: EMPTY_GLOBE });
+    expect(roundTripped).toEqual({
+      ...state,
+      conditions: EMPTY_CONDITIONS,
+      globe: EMPTY_GLOBE,
+      playback: EMPTY_PLAYBACK,
+    });
   });
 
   it('degrades a bogus surface value and a future version to defaults', () => {
@@ -57,6 +67,7 @@ describe('viewer URL state codec', () => {
       conditions: EMPTY_CONDITIONS,
       bandId: DEFAULT_BAND_ID,
       globe: EMPTY_GLOBE,
+      playback: EMPTY_PLAYBACK,
     });
   });
 
@@ -72,6 +83,7 @@ describe('viewer URL state codec', () => {
       conditions: {},
       bandId: DEFAULT_BAND_ID,
       globe: {},
+      playback: {},
     });
     expect(params.has('s')).toBe(false);
     expect(params.get('v')).toBe('1');
@@ -84,6 +96,7 @@ describe('viewer URL state codec', () => {
       conditions: {},
       bandId: DEFAULT_BAND_ID,
       globe: {},
+      playback: {},
     });
     expect(params.get('s')).toBe('timeline');
   });
@@ -95,6 +108,7 @@ describe('viewer URL state codec', () => {
       conditions: { dk: 'manual', sfi: 150, kp: 4 },
       bandId: DEFAULT_BAND_ID,
       globe: {},
+      playback: {},
     };
     const roundTripped = decodeViewerUrlState(encodeViewerUrlState(state));
     expect(roundTripped).toEqual({
@@ -103,6 +117,7 @@ describe('viewer URL state codec', () => {
       conditions: { t: undefined, dk: 'manual', sfi: 150, kp: 4, gnd: undefined },
       bandId: DEFAULT_BAND_ID,
       globe: EMPTY_GLOBE,
+      playback: EMPTY_PLAYBACK,
     });
   });
 
@@ -113,6 +128,7 @@ describe('viewer URL state codec', () => {
       conditions: {},
       bandId: DEFAULT_BAND_ID,
       globe: { exaggerationFactor: 3, mapMode: 'globe' },
+      playback: {},
     };
     const roundTripped = decodeViewerUrlState(encodeViewerUrlState(state));
     expect(roundTripped).toEqual({
@@ -125,6 +141,33 @@ describe('viewer URL state codec', () => {
         exaggerationFactor: 3,
         mapMode: 'globe',
       },
+      playback: EMPTY_PLAYBACK,
     });
+  });
+
+  it('round-trips a playback override (phase 10, Slice 4) alongside other fields', () => {
+    const state: ViewerUrlState = {
+      surface: 'reach',
+      station: {},
+      conditions: {},
+      bandId: DEFAULT_BAND_ID,
+      globe: {},
+      playback: { unrealismUnlocked: true },
+    };
+    const roundTripped = decodeViewerUrlState(encodeViewerUrlState(state));
+    expect(roundTripped).toEqual({
+      surface: 'reach',
+      station: {},
+      conditions: EMPTY_CONDITIONS,
+      bandId: DEFAULT_BAND_ID,
+      globe: EMPTY_GLOBE,
+      playback: { unrealismUnlocked: true },
+    });
+  });
+
+  it('a URL missing the playback param entirely (e.g. an older shared link) degrades to the default, not a throw', () => {
+    expect(() => decodeViewerUrlState(new URLSearchParams('v=1&s=path'))).not.toThrow();
+    const decoded = decodeViewerUrlState(new URLSearchParams('v=1&s=path'));
+    expect(decoded.playback).toEqual(EMPTY_PLAYBACK);
   });
 });

@@ -1,12 +1,13 @@
 import { createContext, useContext, useMemo, useState, type ReactNode } from 'react';
 import type { Station } from '@core/domain/station/types';
 import { DEFAULT_STATION } from '@core/domain/station/defaults';
+import { coordsToLocator } from '@core/domain/maidenhead';
 import type { Conditions } from '@core/domain/conditions/types';
 import { DEFAULT_CONDITIONS } from '@core/domain/conditions/defaults';
 import { bandMidpointMhz } from '@core/domain/bandCatalog';
 import { loadStation } from '@integrations/station/persistence';
 import { decodeViewerUrlState } from '../lib/urlState/codec.ts';
-import type { SurfaceId } from '../lib/urlState/types.ts';
+import type { StationUrlState, SurfaceId } from '../lib/urlState/types.ts';
 import { DEFAULT_GLOBE_TOGGLES, type GlobeToggles } from './globeToggles.ts';
 import { DEFAULT_PLAYBACK, type PlaybackState } from './playback.ts';
 
@@ -119,7 +120,14 @@ function initialViewerState(): ViewerState {
   const decoded = decodeViewerUrlState(new URLSearchParams(window.location.search));
   return {
     surface: decoded.surface,
-    station: loadStation() ?? DEFAULT_STATION,
+    // CORRECTION (phase 10, Slice 4): `decoded.station` was previously
+    // ignored entirely here -- `stationFieldCodec` could decode
+    // qlat/qlon/ant/pwr/noise, but nothing ever applied the result, so a
+    // shared permalink's Station override silently did nothing (a real
+    // gap, found while wiring the permalink's "opening one reproduces the
+    // scenario exactly" AC end-to-end, not assumed). `applyStationUrlOverrides`
+    // layers the URL's overrides on top of the loaded/default Station.
+    station: applyStationUrlOverrides(loadStation() ?? DEFAULT_STATION, decoded.station),
     conditions: DEFAULT_CONDITIONS,
     bandId: decoded.bandId,
     frequencyMhz: bandMidpointMhz(decoded.bandId),
@@ -150,9 +158,50 @@ function initialViewerState(): ViewerState {
     },
     // `playing` is never persisted (see this phase's plan file --
     // "nobody wants to reopen the tab into a running animation").
-    // `unrealismUnlocked`'s own URL round-trip is Slice 4's own addition
-    // (`playbackFieldCodec`) -- this slice just seeds the in-memory default.
-    playback: { ...DEFAULT_PLAYBACK },
+    // `unrealismUnlocked` DOES round-trip through the URL codec (Slice 4,
+    // F7.4's own "including the realism-unlock state" AC).
+    playback: {
+      ...DEFAULT_PLAYBACK,
+      unrealismUnlocked: decoded.playback.unrealismUnlocked ?? DEFAULT_PLAYBACK.unrealismUnlocked,
+    },
+  };
+}
+
+/**
+ * Layers `StationUrlState`'s lossy overrides on top of an already-loaded
+ * `Station` (Slice 4, F7.4). `qlat`/`qlon` override `qth` (locator
+ * recomputed to stay consistent, source becomes `'default'` -- neither
+ * `'map'` nor `'geolocation'`/`'address'`/`'maidenhead'` accurately
+ * describes "came from a shared link"); `pwr`/`noise` override directly.
+ * `ant` (the active antenna's pattern family) is the lossiest field --
+ * `StationUrlState`'s own doc comment already flags this is "enough to
+ * reconstruct a PLAUSIBLE antenna," not the exact one: this function
+ * looks for an antenna already in the (loaded-or-default) array with a
+ * matching `family` and makes IT active, rather than fabricating a new
+ * antenna config from just a family name (no height/gain/heading is
+ * carried in the URL to build one with). If none match, the family
+ * override is silently dropped -- a documented lossy edge, not a crash.
+ */
+function applyStationUrlOverrides(station: Station, override: StationUrlState): Station {
+  const lat = override.qlat ?? station.qth.lat;
+  const lon = override.qlon ?? station.qth.lon;
+  const qth =
+    override.qlat !== undefined || override.qlon !== undefined
+      ? { lat, lon, locator: coordsToLocator(lat, lon), source: 'default' as const }
+      : station.qth;
+
+  const activeAntennaId =
+    override.ant !== undefined
+      ? (station.antennas.find((antenna) => antenna.family === override.ant)?.id ??
+        station.activeAntennaId)
+      : station.activeAntennaId;
+
+  return {
+    ...station,
+    qth,
+    activeAntennaId,
+    powerW: override.pwr ?? station.powerW,
+    noiseEnvironment: override.noise ?? station.noiseEnvironment,
   };
 }
 
