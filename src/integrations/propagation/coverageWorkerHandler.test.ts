@@ -9,10 +9,20 @@ import { describe, expect, it } from 'vitest';
 import { layerStates } from '@core/domain/propagation/layers';
 import { ssnFromSfi } from '@core/domain/propagation/losses';
 import type { CoverageGridInput } from '@core/domain/propagation/coverageGrid';
+import type { AntennaConfig } from '@core/domain/station/types';
 import { createCoverageWorkerHandler } from './coverageWorkerHandler';
 import type { CoverageGridWorkerResponse } from './protocol';
 
 const EQUINOX_SOLAR_NOON_UTC = Date.UTC(2024, 2, 20, 12, 0, 0);
+
+/** See coverageGrid.test.ts's own STANDARD_ANTENNA doc -- same azimuth-invariant control case. */
+const STANDARD_ANTENNA: AntennaConfig = {
+  id: 'standard-test-antenna',
+  name: 'Test vertical',
+  family: 'omnidirectional-vertical',
+  heightM: 10,
+  gainDbi: 6,
+};
 
 const SAMPLE_PAYLOAD: CoverageGridInput = {
   txLat: 0,
@@ -22,7 +32,7 @@ const SAMPLE_PAYLOAD: CoverageGridInput = {
   layers: layerStates(120, 0, 0, 0),
   ssn: ssnFromSfi(120),
   txPowerW: 100,
-  txAntennaGainDbi: 6,
+  txAntenna: STANDARD_ANTENNA,
   rxAntennaGainDbi: 6,
   groundType: 'land',
   noiseEnvironment: 'rural',

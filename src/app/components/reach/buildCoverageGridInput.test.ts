@@ -19,12 +19,12 @@ describe('buildCoverageGridInput', () => {
     expect(input.ssn).toBeCloseTo(ssnFromSfi(DEFAULT_CONDITIONS.driver.sfi), 6);
   });
 
-  it("uses the active antenna's gain for both TX and RX (symmetric reference receiver)", () => {
+  it('passes the whole active antenna as txAntenna, and its flat gain as rxAntennaGainDbi (symmetric reference receiver)', () => {
     const input = buildCoverageGridInput(DEFAULT_STATION, DEFAULT_CONDITIONS, 14.2);
     const activeAntenna = DEFAULT_STATION.antennas.find(
       (a) => a.id === DEFAULT_STATION.activeAntennaId,
     )!;
-    expect(input.txAntennaGainDbi).toBe(activeAntenna.gainDbi);
+    expect(input.txAntenna).toEqual(activeAntenna);
     expect(input.rxAntennaGainDbi).toBe(activeAntenna.gainDbi);
   });
 

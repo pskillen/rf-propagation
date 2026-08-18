@@ -30,6 +30,8 @@
  * what actually produces greyline-like variation across the shaded grid.
  */
 
+import { elevationGainDbi } from '../antenna/antennaPattern';
+import type { AntennaConfig } from '../station/types';
 import { groundRangePerHopKm, slantPathLengthKm } from './geometry';
 import { destinationPoint, type GeoPoint } from './greatCircle';
 import type { GroundType } from './losses';
@@ -116,7 +118,18 @@ export interface CoverageGridInput {
   layers: LayerState[];
   ssn: number;
   txPowerW: number;
-  txAntennaGainDbi: number;
+  /**
+   * The TX antenna's full pattern config (Slice 1, fix/reach-
+   * directionality-antenna-greyline) -- CHANGED from a flat
+   * `txAntennaGainDbi: number`. The sweep now calls `elevationGainDbi`
+   * per cell (elevation/azimuth already both in scope at the call site),
+   * so a beam's heading or a dipole's null visibly shapes the coverage
+   * surface instead of every azimuth getting the antenna's flat nominal
+   * gain. Scoped to TX only -- `rxAntennaGainDbi` below stays the existing
+   * flat symmetric-reference-receiver simplification (see
+   * `buildCoverageGridInput.ts`'s own doc comment).
+   */
+  txAntenna: AntennaConfig;
   rxAntennaGainDbi: number;
   groundType: GroundType;
   noiseEnvironment: NoiseEnvironment;
@@ -273,7 +286,12 @@ export function computeCoverageGridAtStride(
           hops,
           frequencyMhz: input.frequencyMhz,
           txPowerW: input.txPowerW,
-          txAntennaGainDbi: input.txAntennaGainDbi,
+          txAntennaGainDbi: elevationGainDbi(
+            input.txAntenna,
+            elevationDeg,
+            azimuthDeg,
+            input.frequencyMhz,
+          ),
           rxAntennaGainDbi: input.rxAntennaGainDbi,
           groundType: input.groundType,
           noiseEnvironment: input.noiseEnvironment,
