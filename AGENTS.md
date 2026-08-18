@@ -54,6 +54,17 @@ This repo uses `.skills/<name>/SKILL.md` rather than a `.cursor/skills/` or `.cl
 | [version-number](.skills/version-number/SKILL.md) | Build-env/version footer (once the app is scaffolded) |
 | [debounced-inputs](.skills/debounced-inputs/SKILL.md) | Persisted text/number/slider input pattern (once inputs exist) |
 
+## Multi-phase agents
+
+Claude Code project subagents in [`.claude/agents/`](.claude/agents/) encode the [multi-phase-plan](.skills/multi-phase-plan/SKILL.md) roles. Do not set a default `agent` in settings — pick one per session. See [CLAUDE.md](CLAUDE.md).
+
+| Agent | Job |
+| --- | --- |
+| `designer` | Brainstorm → `hl-delivery-plan.md` RFC. No tickets, no product code. |
+| `planner` | Tickets, phases, file issues, concrete `plans/`. One step, then stop. |
+| `orchestrator` | Spawn `implementor` once per phase on stacked branches. |
+| `implementor` | Execute **one** phase file: branch, atomic commits, docs, local gates, PR. |
+
 ## Working principles
 
 1. **Physics correctness is the product's core risk.** The prior in-Studio version shipped a propagation model with real defects; this rebuild's first deliverable is the engine plus a validation harness, and every later engine change must keep it green. Do not treat round-trip/system tests as a substitute for it.
