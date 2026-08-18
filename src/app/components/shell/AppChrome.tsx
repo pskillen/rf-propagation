@@ -11,6 +11,13 @@ export interface AppChromeProps {
   stationBar?: ReactNode;
   /** Filled by phase 7 (Conditions, F4.6) — rendered empty until then. */
   conditionsBar?: ReactNode;
+  /**
+   * Filled by phase 10's `TransportControl` (F7.1) — a third persistent
+   * chrome slot, mounted once here (not inside any one surface), which is
+   * what makes "works on every surface" true by construction rather than
+   * by separate per-surface wiring.
+   */
+  transportControl?: ReactNode;
   children: ReactNode;
 }
 
@@ -44,7 +51,12 @@ const NAV_ICONS: Record<string, ReactNode> = {
  * Not a port of Studio's `AppShell.tsx` (project chip / avatar / build
  * chrome) — this app has no projects, builds, or accounts.
  */
-export default function AppChrome({ stationBar, conditionsBar, children }: AppChromeProps) {
+export default function AppChrome({
+  stationBar,
+  conditionsBar,
+  transportControl,
+  children,
+}: AppChromeProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const activeId = NAV_ITEMS.find((item) => item.path === location.pathname)?.id ?? 'reach';
@@ -73,6 +85,9 @@ export default function AppChrome({ stationBar, conditionsBar, children }: AppCh
       </div>
       <div className={classes.conditionsBar} data-slot="conditions-bar">
         {conditionsBar}
+      </div>
+      <div className={classes.transportControl} data-slot="transport-control">
+        {transportControl}
       </div>
       <main className={classes.main}>{children}</main>
       <BuildFooter />

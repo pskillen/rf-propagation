@@ -3,6 +3,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import DesignSystemV2Provider from '../v2/DesignSystemV2Provider.tsx';
 import { ViewerStateProvider } from '../../state/viewerState.tsx';
+import { useConditions } from '../../hooks/useConditions.ts';
+import { conditionsUrlStateToInitialTime } from '../../lib/urlState/fields/conditions.ts';
+import { useViewerUrlState } from '../../hooks/useViewerUrlState.ts';
 import ConditionsBar from './ConditionsBar.tsx';
 
 const mockFetchLatestSpaceWeather = vi.fn();
@@ -18,12 +21,23 @@ vi.mock('@integrations/conditions/persistence', () => ({
   saveLastKnownDriver: (...args: unknown[]) => mockSaveLastKnownDriver(...args),
 }));
 
+// Phase 10 lifted the `useConditions()` clock out of `ConditionsBar` (see
+// `viewerState.tsx`'s phase-10 CORRECTION note) -- this harness stands in
+// for `App.tsx`'s `Shell`, which now owns that call.
+function ConditionsBarHarness() {
+  const { state: urlState } = useViewerUrlState();
+  const { atMs, liveNow, scrubTo, goLive } = useConditions(
+    conditionsUrlStateToInitialTime(urlState.conditions),
+  );
+  return <ConditionsBar atMs={atMs} liveNow={liveNow} onScrub={scrubTo} onGoLive={goLive} />;
+}
+
 function renderBar(initialEntry = '/') {
   render(
     <MemoryRouter initialEntries={[initialEntry]}>
       <ViewerStateProvider>
         <DesignSystemV2Provider>
-          <ConditionsBar />
+          <ConditionsBarHarness />
         </DesignSystemV2Provider>
       </ViewerStateProvider>
     </MemoryRouter>,

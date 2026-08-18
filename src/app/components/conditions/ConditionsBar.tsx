@@ -11,9 +11,7 @@ import type { GroundType } from '@core/domain/propagation/losses';
 import type { Conditions } from '@core/domain/conditions/types';
 import { DEFAULT_CONDITIONS } from '@core/domain/conditions/defaults';
 import { UK_AMATEUR_BANDS, bandMidpointMhz } from '@core/domain/bandCatalog';
-import { conditionsUrlStateToInitialTime } from '../../lib/urlState/fields/conditions.ts';
 import type { ConditionsUrlState } from '../../lib/urlState/types.ts';
-import { useConditions } from '../../hooks/useConditions.ts';
 import { describeDriverProvenance, useConditionsDriver } from '../../hooks/useConditionsDriver.ts';
 import { useViewerUrlState } from '../../hooks/useViewerUrlState.ts';
 import { useViewerState } from '../../state/viewerState.tsx';
@@ -38,9 +36,28 @@ const GROUND_OPTIONS: SegmentedControlOption<GroundType>[] = [
   { value: 'mixed', label: 'Mixed' },
 ];
 
-export default function ConditionsBar() {
+/**
+ * `atMs`/`liveNow`/`onScrub`/`onGoLive` — the `useConditions()` clock,
+ * lifted OUT of this component in phase 10 (F7.1) and instantiated once
+ * in `App.tsx`'s `Shell`, shared with `TransportControl` (see
+ * `viewerState.tsx`'s phase-10 CORRECTION note for why: the transport
+ * control is a second writer of `atMs`, and it lives in the shared
+ * chrome, not inside this component). `onScrub` here wraps the raw
+ * clock's `scrubTo` with "pause playback first" (F7.1's own "yields to
+ * interaction" AC) — this component's own manual `TimeScrubber` drag
+ * counts as interaction the same way the transport control's own scrub
+ * slider does.
+ */
+export interface ConditionsBarProps {
+  atMs: number;
+  liveNow: boolean;
+  onScrub: (atMs: number) => void;
+  onGoLive: () => void;
+}
+
+export default function ConditionsBar({ atMs, liveNow, onScrub, onGoLive }: ConditionsBarProps) {
   const { state: urlState, setState: setUrlState } = useViewerUrlState();
-  const { setState: setViewerState } = useViewerState();
+  const { state: viewerState, setState: setViewerState } = useViewerState();
 
   // Seeded once from the URL at first mount (a shared permalink's
   // Conditions override is respected on first paint) — not continuously
@@ -49,9 +66,18 @@ export default function ConditionsBar() {
   // established for Station via localStorage instead.
   const [initial] = useState(() => urlState.conditions);
 
-  const { atMs, liveNow, scrubTo, goLive } = useConditions(
-    conditionsUrlStateToInitialTime(initial),
-  );
+  const scrubTo = (nextAtMs: number) => {
+    if (viewerState.playback.playing) {
+      setViewerState((prev) => ({ ...prev, playback: { ...prev.playback, playing: false } }));
+    }
+    onScrub(nextAtMs);
+  };
+  const goLive = () => {
+    if (viewerState.playback.playing) {
+      setViewerState((prev) => ({ ...prev, playback: { ...prev.playback, playing: false } }));
+    }
+    onGoLive();
+  };
   const [ground, setGround] = useState<GroundType>(initial.gnd ?? DEFAULT_CONDITIONS.ground);
   const [initialManual] = useState(() =>
     initial.dk === 'manual' && initial.sfi !== undefined && initial.kp !== undefined

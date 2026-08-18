@@ -8,6 +8,7 @@ import { loadStation } from '@integrations/station/persistence';
 import { decodeViewerUrlState } from '../lib/urlState/codec.ts';
 import type { SurfaceId } from '../lib/urlState/types.ts';
 import { DEFAULT_GLOBE_TOGGLES, type GlobeToggles } from './globeToggles.ts';
+import { DEFAULT_PLAYBACK, type PlaybackState } from './playback.ts';
 
 /**
  * `ViewerState.target`'s source — how the operator set the current target.
@@ -60,6 +61,17 @@ export interface Target {
  * ConditionsBar needs to write them (yet). See this PR's description for
  * the full reasoning — flagged there as a decision later phases (9-15,
  * which all read Station/Conditions the same way) should be aware of.
+ *
+ * CORRECTION (phase 10): "since nothing outside ConditionsBar needs to
+ * write them (yet)" stopped being true for `atMs`/`liveNow` specifically
+ * — the transport control (F7.1) is a second writer, and it lives in the
+ * shared chrome, not inside `ConditionsBar`. `atMs`/`liveNow` ownership
+ * moves to a single `useConditions()` call made once in `App.tsx`'s
+ * `Shell` (above both `ConditionsBar` and `TransportControl`), passed
+ * into `ConditionsBar` as props instead of that component calling the
+ * hook itself; `driver`/`ground`/`bandId`/`frequencyMhz` are UNCHANGED —
+ * still ConditionsBar-local, still published one-way into this context,
+ * since nothing outside ConditionsBar writes those.
  */
 /** Display-only surface settings — phase 9 (Globe) adds `globeToggles`; later phases may add sibling fields here (never edit `globeToggles`'s own shape from outside this phase). */
 export interface DisplayState {
@@ -74,6 +86,8 @@ export interface ViewerState {
   frequencyMhz: number;
   target: Target | null;
   display: DisplayState;
+  /** Transport-control play/pause/speed and the realism-unlock flag (F7.1/F7.3, phase 10). */
+  playback: PlaybackState;
 }
 
 export interface ViewerStateContextValue {
@@ -134,6 +148,11 @@ function initialViewerState(): ViewerState {
         mapMode: decoded.globe.mapMode ?? DEFAULT_GLOBE_TOGGLES.mapMode,
       },
     },
+    // `playing` is never persisted (see this phase's plan file --
+    // "nobody wants to reopen the tab into a running animation").
+    // `unrealismUnlocked`'s own URL round-trip is Slice 4's own addition
+    // (`playbackFieldCodec`) -- this slice just seeds the in-memory default.
+    playback: { ...DEFAULT_PLAYBACK },
   };
 }
 

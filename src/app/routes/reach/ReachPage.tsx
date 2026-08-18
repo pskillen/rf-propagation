@@ -81,10 +81,16 @@ export default function ReachPage() {
   // cancels/supersedes any still-in-flight request itself.
   const handleStationDrag = useCallback(
     (lat: number, lon: number) => {
+      // Yields to interaction (F7.1, phase 10) -- a manual marker drag
+      // during playback pauses it rather than fighting it for control of
+      // the coverage surface.
+      setState((prev) =>
+        prev.playback.playing ? { ...prev, playback: { ...prev.playback, playing: false } } : prev,
+      );
       setDragQth({ lat, lon });
       recompute({ lat, lon });
     },
-    [recompute],
+    [recompute, setState],
   );
 
   // Only `dragend` persists a QTH change (Slice 1's own "debouncing
@@ -131,7 +137,13 @@ export default function ReachPage() {
   // the same setState path every other ViewerState sub-object uses.
   const handleGlobeTogglesChange = useCallback(
     (next: GlobeToggles) => {
-      setState((prev) => ({ ...prev, display: { ...prev.display, globeToggles: next } }));
+      // Yields to interaction (F7.1) -- a shell-slider drag (exaggeration
+      // factor etc.) during playback pauses it, same as a station drag.
+      setState((prev) => ({
+        ...prev,
+        display: { ...prev.display, globeToggles: next },
+        playback: prev.playback.playing ? { ...prev.playback, playing: false } : prev.playback,
+      }));
     },
     [setState],
   );

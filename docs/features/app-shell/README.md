@@ -23,6 +23,7 @@ placeholder — Path, Timeline and Explore still are.
 | Responsive layout skeleton | Shipped | `SurfaceLayout` controls-plus-canvas grid, mounted on all four surfaces (Reach is no longer a placeholder as of phase 8) — [component-kit-and-shell.md](component-kit-and-shell.md) |
 | Station bar / Conditions bar content | Both shipped | `stationBar` slot filled by `StationBar` (phase 6) — see [Station](../station/README.md); `conditionsBar` slot filled by `ConditionsBar` (phase 7) — see [Conditions](../conditions/README.md) |
 | Any propagation-engine wiring | Not started (at this phase) | This phase itself imports nothing from `src/core/domain/propagation/` or `src/integrations/propagation/`; [Reach](../reach/README.md) (phase 8) is the first surface to call the engine |
+| Transport control (play/pause/speed/scrub) | Shipped | Third persistent chrome slot (`AppChrome`'s `transportControl`), filled by `TransportControl` (phase 10, F7.1) — drives `Conditions.atMs`, shared with `ConditionsBar` via a clock lifted to `App.tsx`'s `Shell`. See [playground-controls.md](playground-controls.md) and the component's own sidecar, `src/app/components/TransportControl/TransportControl.md` |
 
 ## Documentation map
 
@@ -30,6 +31,7 @@ placeholder — Path, Timeline and Explore still are.
 | --- | --- |
 | [component-kit-and-shell.md](component-kit-and-shell.md) | What was ported from Studio's `v2` kit and what was excluded, the two components needed to compile the kit but not part of its public surface, `AppChrome`, `SurfaceLayout`, and the four-route shell (phase 5) |
 | [url-state-codec.md](url-state-codec.md) | The versioned, per-field URL state codec: registration mechanism, versioning/degrade behaviour, and exactly what later phases are allowed to touch (phase 5) |
+| [playground-controls.md](playground-controls.md) | The transport control, reset-to-defaults, realism unlock, permalink and preset menu (phase 10, F7.1–F7.5) |
 
 ## Concepts
 
