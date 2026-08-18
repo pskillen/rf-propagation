@@ -9,10 +9,20 @@ import { describe, expect, it } from 'vitest';
 import { layerStates } from '@core/domain/propagation/layers';
 import { ssnFromSfi } from '@core/domain/propagation/losses';
 import type { CoverageGridInput } from '@core/domain/propagation/coverageGrid';
+import type { AntennaConfig } from '@core/domain/station/types';
 import { createCoverageWorkerHandler } from './coverageWorkerHandler';
 import type { CoverageGridWorkerResponse } from './protocol';
 
 const EQUINOX_SOLAR_NOON_UTC = Date.UTC(2024, 2, 20, 12, 0, 0);
+
+/** See coverageGrid.test.ts's own STANDARD_ANTENNA doc -- same azimuth-invariant control case. */
+const STANDARD_ANTENNA: AntennaConfig = {
+  id: 'standard-test-antenna',
+  name: 'Test vertical',
+  family: 'omnidirectional-vertical',
+  heightM: 10,
+  gainDbi: 6,
+};
 
 const SAMPLE_PAYLOAD: CoverageGridInput = {
   txLat: 0,
@@ -22,7 +32,7 @@ const SAMPLE_PAYLOAD: CoverageGridInput = {
   layers: layerStates(120, 0, 0, 0),
   ssn: ssnFromSfi(120),
   txPowerW: 100,
-  txAntennaGainDbi: 6,
+  txAntenna: STANDARD_ANTENNA,
   rxAntennaGainDbi: 6,
   groundType: 'land',
   noiseEnvironment: 'rural',
@@ -87,7 +97,22 @@ describe('createCoverageWorkerHandler -- coarse-then-fine two-pass', () => {
         expect(buffer.byteLength).toBe(0);
       }
 
-      await new Promise((resolve) => setTimeout(resolve, 0));
+      // Poll rather than a single fixed-tick wait -- a lone
+      // `setTimeout(resolve, 0)` assumes the event loop delivers
+      // `port2`'s message within one macrotask, which holds up locally
+      // but is exactly the kind of assumption a loaded/throttled CI
+      // runner can miss under scheduling contention (seen in CI: this
+      // test failed with `received.length === 0`, passing reliably in
+      // 5/5 local reruns). Polling up to a generous ceiling keeps the
+      // test just as capable of catching a genuine "message never
+      // arrives" regression -- it still fails once the ceiling elapses
+      // -- while tolerating a slow tick.
+      const POLL_CEILING_MS = 1000;
+      const POLL_INTERVAL_MS = 5;
+      const deadline = Date.now() + POLL_CEILING_MS;
+      while (received.length === 0 && Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+      }
       expect(received.length).toBeGreaterThan(0);
     } finally {
       port1.close();

@@ -64,7 +64,21 @@ multi-hop path's later hops sit at different points on the Earth).
 `generateIllustrationRays` both take a `CoverageGridInput`: station
 lat/lon/time, frequency, `layers` (**one** evaluation at the station, per
 physics-and-fidelity.md §7's "uniform ionosphere" tier), SSN, TX
-power/gain, RX gain, ground type, noise environment, bandwidth.
+power, TX antenna, RX gain, ground type, noise environment, bandwidth.
+
+**`txAntenna` (changed from a flat `txAntennaGainDbi: number` in
+`fix/reach-directionality-antenna-greyline`):** the whole
+`AntennaConfig`, not just its nominal gain. Both `coverageGrid.ts`'s
+per-cell sweep and `illustrationRays.ts`'s per-ray-point trace now call
+`elevationGainDbi(txAntenna, elevationDeg, azimuthDeg, frequencyMhz)`
+at the elevation/azimuth already in scope, instead of passing the same
+flat number to every cell/point regardless of the antenna's actual
+pattern. `rxAntennaGainDbi` stays a flat `number` — scoped to TX only,
+see [../station/antenna-model.md](../station/antenna-model.md) and
+[../reach/coverage-surface.md](../reach/coverage-surface.md#directionality).
+`computeLinkBudget`'s own `LinkBudgetInput.txAntennaGainDbi` signature
+is unchanged — this only changes what value `CoverageGridInput`'s
+callers compute before calling it.
 
 ## Behaviour
 

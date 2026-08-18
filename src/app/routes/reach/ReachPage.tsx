@@ -7,12 +7,14 @@ import { useCallback, useState } from 'react';
 import { coordsToLocator } from '@core/domain/maidenhead';
 import { mergeStation } from '@integrations/station/persistence';
 import SurfaceLayout from '../../components/layout/SurfaceLayout.tsx';
+import { ToggleSwitch } from '../../components/v2/index.ts';
 import CoverageLegend from '../../components/reach/CoverageLegend.tsx';
 import ReachMap from '../../components/reach/ReachMap.tsx';
 import ReachSummaryStrip from '../../components/reach/ReachSummaryStrip.tsx';
 import TargetPanel from '../../components/reach/TargetPanel.tsx';
 import { useBestBandNow } from '../../components/reach/useBestBandNow.ts';
 import { useReachCoverage } from '../../components/reach/useReachCoverage.ts';
+import { useThrottledConditions } from '../../hooks/useThrottledConditions.ts';
 import { useViewerState } from '../../state/viewerState.tsx';
 import classes from './ReachPage.module.css';
 
@@ -26,10 +28,25 @@ export default function ReachPage() {
   // projection both stay correct mid-gesture, not just after release.
   const [dragQth, setDragQth] = useState<{ lat: number; lon: number } | null>(null);
 
+  // Slice 5 (fix/reach-directionality-antenna-greyline): local to Reach
+  // only, not a global display-toggle registry (phase 10 hasn't built
+  // that yet) -- default ON, since most users are on this 2D map and were
+  // seeing none of this before.
+  const [showTerminator, setShowTerminator] = useState(true);
+
   const { result, pass, recompute } = useReachCoverage(station, conditions, frequencyMhz);
   // Best-band-now: its own per-band sweep, only re-run on Station/
   // Conditions change (Slice 4's own note -- not part of the live-drag path).
   const bandRankings = useBestBandNow(station, conditions);
+
+  // The greyline's own recompute cadence -- `TerminatorLayer` redoes a
+  // 180-point geometric ring on every `atMs` it's given, so feeding it the
+  // raw, 1s-ticking `conditions.atMs` re-ran that on every live clock tick
+  // too (same mechanical cause as `useReachCoverage`/`useBestBandNow`'s
+  // fix above, just cheaper per-call). `TerminatorLayer` itself memoizes
+  // on this value, so a throttled prop is what actually stops the redundant
+  // recompute, not just how often it's passed down.
+  const throttledConditions = useThrottledConditions(conditions);
 
   // "Fire a new request on every drag-move event, let the client's own
   // supersede logic handle the rest" (phase 4's own instruction) --
@@ -91,6 +108,11 @@ export default function ReachPage() {
           ) : null}
           <ReachSummaryStrip coverageResult={result} bandRankings={bandRankings} />
           <CoverageLegend />
+          <ToggleSwitch
+            checked={showTerminator}
+            onChange={setShowTerminator}
+            label="Greyline (day/night terminator)"
+          />
         </div>
       }
       canvas={
@@ -103,6 +125,8 @@ export default function ReachPage() {
           coverageStation={coverageStation}
           target={target}
           onMapClick={handleMapClick}
+          atMs={throttledConditions.atMs}
+          showTerminator={showTerminator}
         />
       }
     />

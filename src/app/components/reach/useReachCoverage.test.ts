@@ -6,9 +6,10 @@
  * contract, not a mock of it.
  */
 import { act, renderHook, waitFor } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { DEFAULT_STATION } from '@core/domain/station/defaults';
 import { DEFAULT_CONDITIONS } from '@core/domain/conditions/defaults';
+import type { Conditions } from '@core/domain/conditions/types';
 import { computeCoverageGrid } from '@core/domain/propagation/coverageGrid';
 import { CoverageGridClient, type WorkerLike } from '@integrations/propagation/coverageGridClient';
 import { createCoverageWorkerHandler } from '@integrations/propagation/coverageWorkerHandler';
@@ -110,5 +111,103 @@ describe('useReachCoverage', () => {
 
     await waitFor(() => expect(result.current.result).not.toBe(firstResult));
     await waitFor(() => expect(result.current.pass).toBe('fine'));
+  });
+
+  // Regression coverage for the OOM/sluggishness bug: `useConditions` ticks
+  // `Conditions.atMs` forward every ~1s while `liveNow` is true, forever.
+  // Before the fix, the auto-recompute effect depended directly on
+  // `recompute` (which depends on `conditions`), so every one of those
+  // ticks re-fired a full coarse+fine coverage-grid sweep.
+  describe('auto-recompute cadence (Conditions.atMs live-clock throttling)', () => {
+    it('does NOT fire a new sweep on successive small (sub-60s) atMs ticks', async () => {
+      const computeSpy = vi.spyOn(CoverageGridClient.prototype, 'compute');
+      const { rerender } = renderHook(
+        ({ conditions }: { conditions: Conditions }) =>
+          useReachCoverage(DEFAULT_STATION, conditions, 14.2, fakeClientFactory),
+        { initialProps: { conditions: DEFAULT_CONDITIONS } },
+      );
+
+      await waitFor(() => expect(computeSpy).toHaveBeenCalledTimes(1)); // initial mount
+
+      // Simulate useConditions' own 1s ticks -- none individually cross the
+      // 60s throttle threshold used by useThrottledConditions.
+      for (let i = 1; i <= 30; i++) {
+        rerender({
+          conditions: { ...DEFAULT_CONDITIONS, atMs: DEFAULT_CONDITIONS.atMs + i * 1000 },
+        });
+      }
+      // Flush any microtasks a (buggy, re-triggering) recompute would need.
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      expect(computeSpy).toHaveBeenCalledTimes(1);
+      computeSpy.mockRestore();
+    });
+
+    it('DOES fire a new sweep once atMs has moved by >= 60s since the last auto-recompute', async () => {
+      const computeSpy = vi.spyOn(CoverageGridClient.prototype, 'compute');
+      const { rerender } = renderHook(
+        ({ conditions }: { conditions: Conditions }) =>
+          useReachCoverage(DEFAULT_STATION, conditions, 14.2, fakeClientFactory),
+        { initialProps: { conditions: DEFAULT_CONDITIONS } },
+      );
+      await waitFor(() => expect(computeSpy).toHaveBeenCalledTimes(1));
+
+      rerender({ conditions: { ...DEFAULT_CONDITIONS, atMs: DEFAULT_CONDITIONS.atMs + 60_000 } });
+
+      await waitFor(() => expect(computeSpy).toHaveBeenCalledTimes(2));
+      computeSpy.mockRestore();
+    });
+
+    it('recomputes promptly on a non-time Conditions field change (e.g. SFI/Kp edited in the chrome bar), even if atMs barely moved', async () => {
+      const computeSpy = vi.spyOn(CoverageGridClient.prototype, 'compute');
+      const { rerender } = renderHook(
+        ({ conditions }: { conditions: Conditions }) =>
+          useReachCoverage(DEFAULT_STATION, conditions, 14.2, fakeClientFactory),
+        { initialProps: { conditions: DEFAULT_CONDITIONS } },
+      );
+      await waitFor(() => expect(computeSpy).toHaveBeenCalledTimes(1));
+
+      rerender({
+        conditions: {
+          ...DEFAULT_CONDITIONS,
+          atMs: DEFAULT_CONDITIONS.atMs + 1000, // well under the 60s threshold on its own
+          driver: { kind: 'manual', sfi: 200, kp: 6 },
+        },
+      });
+
+      await waitFor(() => expect(computeSpy).toHaveBeenCalledTimes(2));
+      computeSpy.mockRestore();
+    });
+
+    it('the manual recompute(qthOverride) call (live-drag path) stays fully unthrottled, independent of the auto effect', async () => {
+      const computeSpy = vi.spyOn(CoverageGridClient.prototype, 'compute');
+      const { result } = renderHook(() =>
+        useReachCoverage(DEFAULT_STATION, DEFAULT_CONDITIONS, 14.2, fakeClientFactory),
+      );
+      await waitFor(() => expect(result.current.pass).toBe('fine'));
+      const callsAfterMount = computeSpy.mock.calls.length;
+
+      act(() => {
+        result.current.recompute({
+          lat: DEFAULT_STATION.qth.lat + 0.01,
+          lon: DEFAULT_STATION.qth.lon,
+        });
+        result.current.recompute({
+          lat: DEFAULT_STATION.qth.lat + 0.02,
+          lon: DEFAULT_STATION.qth.lon,
+        });
+        result.current.recompute({
+          lat: DEFAULT_STATION.qth.lat + 0.03,
+          lon: DEFAULT_STATION.qth.lon,
+        });
+      });
+
+      // Every direct recompute() call fires its own compute() -- no
+      // throttling applied to the manual/live-drag path.
+      expect(computeSpy.mock.calls.length).toBe(callsAfterMount + 3);
+      computeSpy.mockRestore();
+    });
   });
 });

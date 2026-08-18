@@ -115,4 +115,22 @@ describe('ReachPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Clear target' }));
     expect(screen.queryByLabelText('Selected target')).not.toBeInTheDocument();
   });
+
+  it('the greyline toggle defaults on, and switching it off hides the terminator layer (Slice 5)', async () => {
+    const { container } = renderReachPage();
+
+    await waitFor(() => {
+      expect(container.querySelectorAll('.leaflet-overlay-pane path').length).toBeGreaterThan(0);
+    });
+
+    const toggle = screen.getByLabelText('Greyline (day/night terminator)');
+    expect(toggle).toBeChecked();
+
+    fireEvent.click(toggle);
+
+    await waitFor(() => {
+      expect(container.querySelectorAll('.leaflet-overlay-pane path')).toHaveLength(0);
+    });
+    expect(toggle).not.toBeChecked();
+  });
 });
