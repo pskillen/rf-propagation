@@ -75,10 +75,15 @@ describe('StationBar', () => {
     expect(screen.getByText(/250 W/)).toBeInTheDocument();
   });
 
-  /** The pattern preview's own SVG -- picked out of the tree by its aria-label, not just "the first <path>" (icons in the form also render <path>s). */
+  /**
+   * The pattern preview's own parallel-cut SVG -- picked out of the tree
+   * by its aria-label, not just "the first <path>" (icons in the form
+   * also render <path>s, and Slice 4 added two more pattern-preview
+   * panels besides this one).
+   */
   function previewPath() {
     return screen
-      .getByRole('img', { name: /elevation gain pattern/i })
+      .getByRole('img', { name: /elevation gain pattern \(parallel cut\)/i })
       .querySelector('path')
       ?.getAttribute('d');
   }
