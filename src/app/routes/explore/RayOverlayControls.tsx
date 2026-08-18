@@ -1,12 +1,22 @@
 /**
- * Explore's ray overlay operator controls (F8.2, [#65]) — radial count,
- * elevations-per-radial, elevation spread, and a manual bearing (only
- * meaningful when no target is set — otherwise the fan already points at
- * the target).
+ * Explore's ray overlay operator controls (F8.2, [#65]; extended by Slice
+ * 3, F8.3, [#68], with outcome filtering / colour-by / layer soloing) —
+ * radial count, elevations-per-radial, elevation spread, a manual bearing
+ * (only meaningful when no target is set — otherwise the fan already
+ * points at the target), the outcome filter, colour-by mode, and a
+ * layer-solo picker.
  *
  * [#65]: https://github.com/pskillen/rf-propagation/issues/65
+ * [#68]: https://github.com/pskillen/rf-propagation/issues/68
  */
-import { Panel, TextInput } from '../../components/v2/index.ts';
+import type { LayerId } from '@core/domain/propagation/layers';
+import { LAYER_IDS_INNER_TO_OUTER } from '@core/domain/propagation/layerColor';
+import {
+  Panel,
+  SegmentedControl,
+  TextInput,
+  type SegmentedControlOption,
+} from '../../components/v2/index.ts';
 import {
   RAY_ELEVATIONS_MAX,
   RAY_ELEVATIONS_MIN,
@@ -15,6 +25,27 @@ import {
   type RayControlsState,
 } from '../../state/rayControls.ts';
 import classes from './RayOverlayControls.module.css';
+
+/** Segmented-control has no "no selection" value of its own — an empty string stands for "no layer soloed." */
+const NO_SOLO = '';
+
+const OUTCOME_OPTIONS: SegmentedControlOption<RayControlsState['outcomeFilter']>[] = [
+  { value: 'all', label: 'All' },
+  { value: 'escaped', label: 'Escaped' },
+  { value: 'returned', label: 'Returned' },
+  { value: 'absorbed', label: 'Absorbed' },
+];
+
+const COLOUR_BY_OPTIONS: SegmentedControlOption<RayControlsState['colourBy']>[] = [
+  { value: 'mode', label: 'Outcome' },
+  { value: 'layer', label: 'Layer' },
+  { value: 'signalStrength', label: 'Signal' },
+];
+
+const SOLO_OPTIONS: SegmentedControlOption<LayerId | typeof NO_SOLO>[] = [
+  { value: NO_SOLO, label: 'None' },
+  ...LAYER_IDS_INNER_TO_OUTER.map((id) => ({ value: id, label: id })),
+];
 
 export interface RayOverlayControlsProps {
   value: RayControlsState;
@@ -110,6 +141,38 @@ export default function RayOverlayControls({
           hint={bearingLocked ? 'Following the current target' : undefined}
           value={Math.round(value.focusBearingDeg)}
           onChange={(e) => onChange({ ...value, focusBearingDeg: Number(e.target.value) || 0 })}
+        />
+      </div>
+
+      <div className={classes.section}>
+        <span className={classes.sectionLabel}>Filter by outcome</span>
+        <SegmentedControl
+          options={OUTCOME_OPTIONS}
+          value={value.outcomeFilter}
+          onChange={(outcomeFilter) => onChange({ ...value, outcomeFilter })}
+          aria-label="Filter rays by outcome"
+        />
+      </div>
+
+      <div className={classes.section}>
+        <span className={classes.sectionLabel}>Colour by</span>
+        <SegmentedControl
+          options={COLOUR_BY_OPTIONS}
+          value={value.colourBy}
+          onChange={(colourBy) => onChange({ ...value, colourBy })}
+          aria-label="Colour rays by"
+        />
+      </div>
+
+      <div className={classes.section}>
+        <span className={classes.sectionLabel}>Solo a layer</span>
+        <SegmentedControl
+          options={SOLO_OPTIONS}
+          value={value.soloLayerId ?? NO_SOLO}
+          onChange={(soloLayerId) =>
+            onChange({ ...value, soloLayerId: soloLayerId === NO_SOLO ? undefined : soloLayerId })
+          }
+          aria-label="Solo a layer"
         />
       </div>
     </Panel>

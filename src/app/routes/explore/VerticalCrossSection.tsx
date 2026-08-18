@@ -61,11 +61,24 @@ function rangeTicksKm(maxRangeKm: number): number[] {
   return Array.from({ length: 5 }, (_, i) => Math.round(i * step));
 }
 
+export interface CrossSectionRay {
+  points: RayPoint[];
+  color: string;
+  dimmed?: boolean;
+}
+
 export interface VerticalCrossSectionProps {
   bands: CrossSectionLayerBand[];
   /** Ground distance (km) the plot's x-axis spans — the current band/target's reach, or a sensible default. */
   maxRangeKm: number;
-  /** The primary hop sequence's polyline (Slice 2 already computed this ray; reused here rather than re-requesting one). */
+  /**
+   * Every ray Slice 2's single `generateIllustrationRays` call produced,
+   * already filtered/coloured/solo-dimmed by Slice 3 (F8.2's own "rays
+   * render on the cross-section and on the globe" acceptance criterion —
+   * not just the one "primary" ray).
+   */
+  rays: CrossSectionRay[];
+  /** The primary hop sequence's polyline, drawn slightly bolder on top of `rays` (Slice 2 already computed this ray; reused here rather than re-requesting one). */
   primaryRayPoints: RayPoint[];
   /** Target's true range (km) along the bearing, when a target is set (Path mode, FR-18). */
   targetRangeKm?: number | null;
@@ -76,6 +89,7 @@ export interface VerticalCrossSectionProps {
 export default function VerticalCrossSection({
   bands,
   maxRangeKm,
+  rays,
   primaryRayPoints,
   targetRangeKm,
   bearingDeg,
@@ -84,13 +98,16 @@ export default function VerticalCrossSection({
   const safeMaxRangeKm = Math.max(1, maxRangeKm);
   const rangeTicks = rangeTicksKm(safeMaxRangeKm);
 
-  const rayPath = primaryRayPoints
-    .map((p, i) => {
-      const x = distanceToX(p.distanceAlongBearingKm, safeMaxRangeKm);
-      const y = altitudeToY(p.altitudeKm);
-      return `${i === 0 ? 'M' : 'L'} ${x.toFixed(1)} ${y.toFixed(1)}`;
-    })
-    .join(' ');
+  const pathFor = (points: RayPoint[]): string =>
+    points
+      .map((p, i) => {
+        const x = distanceToX(p.distanceAlongBearingKm, safeMaxRangeKm);
+        const y = altitudeToY(p.altitudeKm);
+        return `${i === 0 ? 'M' : 'L'} ${x.toFixed(1)} ${y.toFixed(1)}`;
+      })
+      .join(' ');
+
+  const rayPath = pathFor(primaryRayPoints);
 
   return (
     <figure
@@ -195,7 +212,21 @@ export default function VerticalCrossSection({
           className={classes.stationMarker}
         />
 
-        {/* Primary hop polyline */}
+        {/* Every ray in the current display set (F8.2 -- rendered here AND on the globe) */}
+        {rays.map((r, i) =>
+          r.points.length > 1 ? (
+            <path
+              key={i}
+              d={pathFor(r.points)}
+              stroke={r.color}
+              strokeWidth={1}
+              opacity={r.dimmed ? 0.12 : 0.55}
+              fill="none"
+            />
+          ) : null,
+        )}
+
+        {/* Primary hop polyline, drawn bolder on top */}
         {primaryRayPoints.length > 1 ? (
           <path d={rayPath} className={classes.rayPath} fill="none" />
         ) : null}

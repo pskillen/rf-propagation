@@ -13,6 +13,7 @@ describe('VerticalCrossSection', () => {
       <VerticalCrossSection
         bands={BANDS}
         maxRangeKm={3000}
+        rays={[]}
         primaryRayPoints={[]}
         bearingDeg={90}
       />,
@@ -26,6 +27,7 @@ describe('VerticalCrossSection', () => {
       <VerticalCrossSection
         bands={BANDS}
         maxRangeKm={3000}
+        rays={[]}
         primaryRayPoints={[]}
         bearingDeg={90}
       />,
@@ -39,6 +41,7 @@ describe('VerticalCrossSection', () => {
       <VerticalCrossSection
         bands={BANDS}
         maxRangeKm={3000}
+        rays={[]}
         primaryRayPoints={[]}
         bearingDeg={90}
       />,
@@ -51,6 +54,7 @@ describe('VerticalCrossSection', () => {
       <VerticalCrossSection
         bands={BANDS}
         maxRangeKm={3000}
+        rays={[]}
         primaryRayPoints={[]}
         targetRangeKm={1500}
         bearingDeg={90}

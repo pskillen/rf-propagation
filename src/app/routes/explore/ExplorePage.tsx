@@ -22,7 +22,7 @@ import RayOverlayControls from './RayOverlayControls.tsx';
 import VerticalCrossSection from './VerticalCrossSection.tsx';
 import { crossSectionLayerBands } from './crossSectionLayerBands.ts';
 import { currentBearingDeg, selectPrimaryRay, useExploreRays } from './useExploreRays.ts';
-import { rayOutcomeColouring } from './rayVisual.ts';
+import { applyRayVisuals } from './rayVisual.ts';
 import classes from './ExplorePage.module.css';
 
 // Lazy-loaded, same as Reach (F6.1's own AC) -- the three.js/react-globe.gl
@@ -62,9 +62,22 @@ export default function ExplorePage() {
   );
 
   // THE single generateIllustrationRays call this phase's own invariant
-  // demands -- see useExploreRays.ts's own doc comment.
+  // demands -- see useExploreRays.ts's own doc comment. Filtering/colouring/
+  // soloing (Slice 3) is a pure transform over its result, never a second
+  // call -- see rayVisual.ts's own invariant note.
   const rays = useExploreRays(context, rayControls, target);
-  const renderedRays = useMemo(() => rayOutcomeColouring(rays), [rays]);
+  const renderedRays = useMemo(
+    () => applyRayVisuals(rays, rayControls, context),
+    [rays, rayControls, context],
+  );
+  // The globe has no per-path opacity concept (react-globe.gl's pathsData
+  // accessors are colour/dash only) -- a soloed-out ray is hidden there
+  // rather than dimmed, vs. the cross-section's opacity fade. Judgment
+  // call, flagged.
+  const globeRays = useMemo(
+    () => renderedRays.filter((r) => !r.dimmed).map((r) => ({ ray: r.ray, color: r.color })),
+    [renderedRays],
+  );
 
   const bearingDeg = currentBearingDeg(station.qth, target, rayControls.focusBearingDeg);
   const primaryRay = useMemo(
@@ -141,13 +154,18 @@ export default function ExplorePage() {
               coverageResult={null}
               cutawayEnabled={globeToggles.cutawayEnabled}
               sliceBearingDeg={bearingDeg}
-              rays={renderedRays}
+              rays={globeRays}
             />
           </Suspense>
         ) : (
           <VerticalCrossSection
             bands={bands}
             maxRangeKm={maxRangeKm}
+            rays={renderedRays.map((r) => ({
+              points: r.ray.points,
+              color: r.color,
+              dimmed: r.dimmed,
+            }))}
             primaryRayPoints={primaryRay?.points ?? []}
             targetRangeKm={targetRangeKm}
             bearingDeg={bearingDeg}
