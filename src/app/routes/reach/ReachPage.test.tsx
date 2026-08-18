@@ -1,4 +1,4 @@
-import { render, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createCoverageWorkerHandler } from '@integrations/propagation/coverageWorkerHandler';
 import type {
@@ -73,4 +73,23 @@ describe('ReachPage', () => {
       expect(container.querySelector('canvas.reach-coverage-canvas')).not.toBeNull();
     });
   });
+
+  it('shows the summary strip and legend, and eventually a ranked best band', async () => {
+    render(
+      <ViewerStateProvider>
+        <ReachPage />
+      </ViewerStateProvider>,
+    );
+
+    expect(screen.getByLabelText('Reach summary')).toBeInTheDocument();
+    expect(screen.getByLabelText('Coverage shading legend')).toBeInTheDocument();
+
+    await waitFor(
+      () => {
+        expect(screen.queryByText(/Ranking bands/)).not.toBeInTheDocument();
+      },
+      { timeout: 10_000 },
+    );
+    expect(screen.getByText(/reliability/)).toBeInTheDocument();
+  }, 15_000);
 });

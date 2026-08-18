@@ -9,8 +9,11 @@ import { mergeStation } from '@integrations/station/persistence';
 import SurfaceLayout from '../../components/layout/SurfaceLayout.tsx';
 import CoverageLegend from '../../components/reach/CoverageLegend.tsx';
 import ReachMap from '../../components/reach/ReachMap.tsx';
+import ReachSummaryStrip from '../../components/reach/ReachSummaryStrip.tsx';
+import { useBestBandNow } from '../../components/reach/useBestBandNow.ts';
 import { useReachCoverage } from '../../components/reach/useReachCoverage.ts';
 import { useViewerState } from '../../state/viewerState.tsx';
+import classes from './ReachPage.module.css';
 
 export default function ReachPage() {
   const { state, setState } = useViewerState();
@@ -23,6 +26,9 @@ export default function ReachPage() {
   const [dragQth, setDragQth] = useState<{ lat: number; lon: number } | null>(null);
 
   const { result, pass, recompute } = useReachCoverage(station, conditions, frequencyMhz);
+  // Best-band-now: its own per-band sweep, only re-run on Station/
+  // Conditions change (Slice 4's own note -- not part of the live-drag path).
+  const bandRankings = useBestBandNow(station, conditions);
 
   // "Fire a new request on every drag-move event, let the client's own
   // supersede logic handle the rest" (phase 4's own instruction) --
@@ -58,7 +64,12 @@ export default function ReachPage() {
 
   return (
     <SurfaceLayout
-      controls={<CoverageLegend />}
+      controls={
+        <div className={classes.controls}>
+          <ReachSummaryStrip coverageResult={result} bandRankings={bandRankings} />
+          <CoverageLegend />
+        </div>
+      }
       canvas={
         <ReachMap
           station={station}
