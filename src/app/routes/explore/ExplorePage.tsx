@@ -5,7 +5,9 @@
 // definitions, the link-budget breakdown) extend this file's `controls`/
 // `canvas` in place, not by replacing its overall shape.
 import { lazy, Suspense, useMemo } from 'react';
+import { destinationPoint } from '@core/domain/propagation/greatCircle';
 import { solarZenithAngleDeg } from '@core/domain/propagation/solarZenithAngle';
+import { solveHopsForDistance, type SolveHopsContext } from '@core/domain/propagation/multiHop';
 import SurfaceLayout from '../../components/layout/SurfaceLayout.tsx';
 import { Panel, SegmentedControl, type SegmentedControlOption } from '../../components/v2/index.ts';
 import GlobeDisplayPanel from '../../components/HfPropagationGlobe/GlobeDisplayPanel.tsx';
@@ -23,6 +25,8 @@ import VerticalCrossSection from './VerticalCrossSection.tsx';
 import { crossSectionLayerBands } from './crossSectionLayerBands.ts';
 import { currentBearingDeg, selectPrimaryRay, useExploreRays } from './useExploreRays.ts';
 import { applyRayVisuals } from './rayVisual.ts';
+import { buildLinkBudgetBreakdown } from './buildBreakdownRows.ts';
+import LinkBudgetBreakdown from './LinkBudgetBreakdown.tsx';
 import classes from './ExplorePage.module.css';
 
 // Lazy-loaded, same as Reach (F6.1's own AC) -- the three.js/react-globe.gl
@@ -103,6 +107,56 @@ export default function ExplorePage() {
     : null;
   const maxRangeKm = targetRangeKm ?? DEFAULT_EXPLORE_RANGE_KM;
 
+  // Slice 5 (F8.5) -- the breakdown panel, rendered whenever a target is
+  // active (arrived at via either door: the surface switch with a target
+  // already set from a prior surface, or an ExplainThisLink click).
+  // `solveHopsForDistance` is the SAME public entry point Path (phase 13)
+  // will use for its own verdict table -- this phase does not add a
+  // second hop-search implementation.
+  //
+  // Judgment call, flagged: `txAntennaGainDbi` here is the active
+  // antenna's flat nominal gain, not an elevation/azimuth-aware figure --
+  // `solveHopsForDistance`'s own `SolveHopsContext` shape (phase 4) takes
+  // a flat number, unlike `CoverageGridInput`'s antenna-aware `txAntenna`
+  // object (Reach's Slice 1 upgrade). Revisiting that shape for
+  // antenna-aware hop-search is a later phase's call, not this one's.
+  const activeAntenna =
+    station.antennas.find((antenna) => antenna.id === station.activeAntennaId) ??
+    station.antennas[0]!;
+
+  const breakdown = useMemo(() => {
+    if (!target || targetRangeKm == null) return { kind: 'none' as const };
+    const solveContext: SolveHopsContext = {
+      ssn: context.ssn,
+      groundType: context.groundType,
+      noiseEnvironment: context.noiseEnvironment,
+      txPowerW: context.txPowerW,
+      txAntennaGainDbi: activeAntenna.gainDbi,
+      rxAntennaGainDbi: context.rxAntennaGainDbi,
+      bandwidthHz: context.bandwidthHz,
+      solarZenithAtMidpointDeg: (hopIndex, hopCount) => {
+        const midDistanceKm = (targetRangeKm * (hopIndex + 0.5)) / hopCount;
+        const midpoint = destinationPoint(
+          { latDeg: station.qth.lat, lonDeg: station.qth.lon },
+          bearingDeg,
+          midDistanceKm,
+        );
+        return solarZenithAngleDeg(midpoint.latDeg, midpoint.lonDeg, throttledConditions.atMs);
+      },
+    };
+    const solved = solveHopsForDistance(targetRangeKm, frequencyMhz, layers, solveContext);
+    if (solved.kind === 'unreachable') return { kind: 'unreachable' as const };
+    return {
+      kind: 'solved' as const,
+      data: buildLinkBudgetBreakdown(solved.solution, {
+        frequencyMhz,
+        ssn: context.ssn,
+        groundType: context.groundType,
+      }),
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `context`/`activeAntenna` are derived fresh per render from `station`/`throttledConditions`/`frequencyMhz`, already covered below.
+  }, [target, targetRangeKm, station, bearingDeg, throttledConditions, frequencyMhz, layers]);
+
   const handleRayControlsChange = (next: RayControlsState) => {
     setState((prev) => ({ ...prev, display: { ...prev.display, rayControls: next } }));
   };
@@ -127,6 +181,13 @@ export default function ExplorePage() {
               aria-label="View"
             />
           </Panel>
+          {target ? (
+            <LinkBudgetBreakdown
+              breakdown={breakdown.kind === 'solved' ? breakdown.data : null}
+              unreachable={breakdown.kind === 'unreachable'}
+              frequencyMhz={frequencyMhz}
+            />
+          ) : null}
           <RayOverlayControls
             value={rayControls}
             onChange={handleRayControlsChange}
