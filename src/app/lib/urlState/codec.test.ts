@@ -17,6 +17,15 @@ const EMPTY_CONDITIONS: ViewerUrlState['conditions'] = {
   gnd: undefined,
 };
 
+const EMPTY_GLOBE: ViewerUrlState['globe'] = {
+  exaggerationFactor: undefined,
+  explodeEnabled: undefined,
+  fresnelEnabled: undefined,
+  terminatorEnabled: undefined,
+  cutawayEnabled: undefined,
+  mapMode: undefined,
+};
+
 describe('viewer URL state codec', () => {
   it.each(ALL_SURFACES)('round-trips surface=%s', (surface) => {
     const state: ViewerUrlState = {
@@ -24,9 +33,10 @@ describe('viewer URL state codec', () => {
       station: {},
       conditions: {},
       bandId: DEFAULT_BAND_ID,
+      globe: {},
     };
     const roundTripped = decodeViewerUrlState(encodeViewerUrlState(state));
-    expect(roundTripped).toEqual({ ...state, conditions: EMPTY_CONDITIONS });
+    expect(roundTripped).toEqual({ ...state, conditions: EMPTY_CONDITIONS, globe: EMPTY_GLOBE });
   });
 
   it('degrades a bogus surface value and a future version to defaults', () => {
@@ -46,6 +56,7 @@ describe('viewer URL state codec', () => {
       station: {},
       conditions: EMPTY_CONDITIONS,
       bandId: DEFAULT_BAND_ID,
+      globe: EMPTY_GLOBE,
     });
   });
 
@@ -60,6 +71,7 @@ describe('viewer URL state codec', () => {
       station: {},
       conditions: {},
       bandId: DEFAULT_BAND_ID,
+      globe: {},
     });
     expect(params.has('s')).toBe(false);
     expect(params.get('v')).toBe('1');
@@ -71,6 +83,7 @@ describe('viewer URL state codec', () => {
       station: {},
       conditions: {},
       bandId: DEFAULT_BAND_ID,
+      globe: {},
     });
     expect(params.get('s')).toBe('timeline');
   });
@@ -81,6 +94,7 @@ describe('viewer URL state codec', () => {
       station: { pwr: 400, noise: 'urban' },
       conditions: { dk: 'manual', sfi: 150, kp: 4 },
       bandId: DEFAULT_BAND_ID,
+      globe: {},
     };
     const roundTripped = decodeViewerUrlState(encodeViewerUrlState(state));
     expect(roundTripped).toEqual({
@@ -88,6 +102,29 @@ describe('viewer URL state codec', () => {
       station: { qlat: undefined, qlon: undefined, ant: undefined, pwr: 400, noise: 'urban' },
       conditions: { t: undefined, dk: 'manual', sfi: 150, kp: 4, gnd: undefined },
       bandId: DEFAULT_BAND_ID,
+      globe: EMPTY_GLOBE,
+    });
+  });
+
+  it('round-trips a globe-toggles override (phase 9, Slice 2) alongside other fields', () => {
+    const state: ViewerUrlState = {
+      surface: 'reach',
+      station: {},
+      conditions: {},
+      bandId: DEFAULT_BAND_ID,
+      globe: { exaggerationFactor: 3, mapMode: 'globe' },
+    };
+    const roundTripped = decodeViewerUrlState(encodeViewerUrlState(state));
+    expect(roundTripped).toEqual({
+      surface: 'reach',
+      station: {},
+      conditions: EMPTY_CONDITIONS,
+      bandId: DEFAULT_BAND_ID,
+      globe: {
+        ...EMPTY_GLOBE,
+        exaggerationFactor: 3,
+        mapMode: 'globe',
+      },
     });
   });
 });

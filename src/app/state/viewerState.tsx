@@ -7,6 +7,7 @@ import { bandMidpointMhz } from '@core/domain/bandCatalog';
 import { loadStation } from '@integrations/station/persistence';
 import { decodeViewerUrlState } from '../lib/urlState/codec.ts';
 import type { SurfaceId } from '../lib/urlState/types.ts';
+import { DEFAULT_GLOBE_TOGGLES, type GlobeToggles } from './globeToggles.ts';
 
 /**
  * `ViewerState.target`'s source — how the operator set the current target.
@@ -28,10 +29,19 @@ export interface Target {
 /**
  * Full runtime viewer state — a superset of `ViewerUrlState` (the
  * URL-serializable subset only; see the plan file's "runtime state vs. URL
- * state" note). `display`, `playback`, `compare` are added by phases
- * 10/11, 12 respectively — each phase adds one property to this interface
- * and one piece of its own provider logic, never edits another phase's
- * fields.
+ * state" note).
+ *
+ * CORRECTION (phase 9): this file's doc comment previously said `display`
+ * was added by phase 10 ("`display`, `playback`, `compare` are added by
+ * phases 10/11, 12 respectively") — a projection written during phase 5,
+ * before phase 9's own plan file was drafted. Phase 9's plan file
+ * explicitly and repeatedly calls for `ViewerState.display.globeToggles`
+ * (Slice 2, F6.2's own "settings persist and are registered with the URL
+ * codec" AC), so `display` actually originates HERE, not in phase 10 —
+ * phase 10 (transport control) builds its own `playback` field on top of
+ * a `display` that already exists by the time it starts. `compare`
+ * (phase 12) is unaffected. See this phase's PR description for the full
+ * reasoning.
  *
  * `station`/`conditions`/`bandId`/`frequencyMhz`/`target` (phase 8, Reach)
  * are a DEVIATION from phases 6/7's actual shipped shape: those phases
@@ -51,6 +61,11 @@ export interface Target {
  * the full reasoning — flagged there as a decision later phases (9-15,
  * which all read Station/Conditions the same way) should be aware of.
  */
+/** Display-only surface settings — phase 9 (Globe) adds `globeToggles`; later phases may add sibling fields here (never edit `globeToggles`'s own shape from outside this phase). */
+export interface DisplayState {
+  globeToggles: GlobeToggles;
+}
+
 export interface ViewerState {
   surface: SurfaceId;
   station: Station;
@@ -58,6 +73,7 @@ export interface ViewerState {
   bandId: string;
   frequencyMhz: number;
   target: Target | null;
+  display: DisplayState;
 }
 
 export interface ViewerStateContextValue {
@@ -98,6 +114,26 @@ function initialViewerState(): ViewerState {
     // other than 'map-click' -- see TargetUrlState's own doc comment for
     // why `label`/`source` are lossy across a permalink.
     target: decoded.target ? { ...decoded.target, source: 'map-click' } : null,
+    // NOT a blind `{ ...DEFAULT_GLOBE_TOGGLES, ...decoded.globe }` spread --
+    // globeFieldCodec.decode() always returns every GlobeUrlState key (per
+    // the same "override only" contract stationFieldCodec/
+    // conditionsFieldCodec use), just `undefined` on any field neither the
+    // URL nor DEFAULT_VIEWER_URL_STATE.globe (`{}`) supplied. A spread would
+    // still copy those `undefined`-valued keys over DEFAULT_GLOBE_TOGGLES's
+    // real values, since object spread does not skip `undefined` properties
+    // -- each field needs its own `??` fallback instead.
+    display: {
+      globeToggles: {
+        exaggerationFactor:
+          decoded.globe.exaggerationFactor ?? DEFAULT_GLOBE_TOGGLES.exaggerationFactor,
+        explodeEnabled: decoded.globe.explodeEnabled ?? DEFAULT_GLOBE_TOGGLES.explodeEnabled,
+        fresnelEnabled: decoded.globe.fresnelEnabled ?? DEFAULT_GLOBE_TOGGLES.fresnelEnabled,
+        terminatorEnabled:
+          decoded.globe.terminatorEnabled ?? DEFAULT_GLOBE_TOGGLES.terminatorEnabled,
+        cutawayEnabled: decoded.globe.cutawayEnabled ?? DEFAULT_GLOBE_TOGGLES.cutawayEnabled,
+        mapMode: decoded.globe.mapMode ?? DEFAULT_GLOBE_TOGGLES.mapMode,
+      },
+    },
   };
 }
 

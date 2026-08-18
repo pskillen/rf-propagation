@@ -61,12 +61,30 @@ export interface TargetUrlState {
 }
 
 /**
+ * The URL's lossy view of `ViewerState.display.globeToggles`
+ * (`@app/state/globeToggles`, phase 9's Slice 2, F6.2's own "settings
+ * persist and are registered with the URL codec" AC). Every field is an
+ * optional override, same "absent means the app's own current/default
+ * value" contract as `StationUrlState`/`ConditionsUrlState` — hence
+ * `DEFAULT_VIEWER_URL_STATE.globe` below is `{}`, not a populated
+ * `GlobeToggles`.
+ */
+export interface GlobeUrlState {
+  exaggerationFactor?: number;
+  explodeEnabled?: boolean;
+  fresnelEnabled?: boolean;
+  terminatorEnabled?: boolean;
+  cutawayEnabled?: boolean;
+  mapMode?: 'map' | 'globe';
+}
+
+/**
  * Grows by one optional-in-spirit field per phase (phase 6 adds `station`,
- * phase 7 adds `conditions` and `bandId`, phase 8 adds `target`, etc. —
- * see ux-and-ia.md §6 for the eventual full shape). Each addition is a new
- * property on this interface plus a new field-codec module registered in
- * codec.ts's FIELD_CODECS array — never a change to an existing property
- * or an existing field-codec's logic.
+ * phase 7 adds `conditions` and `bandId`, phase 8 adds `target`, phase 9
+ * adds `globe`, etc. — see ux-and-ia.md §6 for the eventual full shape).
+ * Each addition is a new property on this interface plus a new
+ * field-codec module registered in codec.ts's FIELD_CODECS array — never
+ * a change to an existing property or an existing field-codec's logic.
  */
 export interface ViewerUrlState {
   surface: SurfaceId;
@@ -74,6 +92,7 @@ export interface ViewerUrlState {
   conditions: ConditionsUrlState;
   bandId: string;
   target?: TargetUrlState;
+  globe: GlobeUrlState;
 }
 
 export const URL_STATE_VERSION = 1;
@@ -91,4 +110,5 @@ export const DEFAULT_VIEWER_URL_STATE: ViewerUrlState = {
   station: {},
   conditions: {},
   bandId: DEFAULT_BAND_ID,
+  globe: {},
 };
