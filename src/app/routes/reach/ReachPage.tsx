@@ -7,6 +7,7 @@ import { useCallback, useState } from 'react';
 import { coordsToLocator } from '@core/domain/maidenhead';
 import { mergeStation } from '@integrations/station/persistence';
 import SurfaceLayout from '../../components/layout/SurfaceLayout.tsx';
+import { ToggleSwitch } from '../../components/v2/index.ts';
 import CoverageLegend from '../../components/reach/CoverageLegend.tsx';
 import ReachMap from '../../components/reach/ReachMap.tsx';
 import ReachSummaryStrip from '../../components/reach/ReachSummaryStrip.tsx';
@@ -25,6 +26,12 @@ export default function ReachPage() {
   // point while dragging, so the shaded surface and the cell->latlon
   // projection both stay correct mid-gesture, not just after release.
   const [dragQth, setDragQth] = useState<{ lat: number; lon: number } | null>(null);
+
+  // Slice 5 (fix/reach-directionality-antenna-greyline): local to Reach
+  // only, not a global display-toggle registry (phase 10 hasn't built
+  // that yet) -- default ON, since most users are on this 2D map and were
+  // seeing none of this before.
+  const [showTerminator, setShowTerminator] = useState(true);
 
   const { result, pass, recompute } = useReachCoverage(station, conditions, frequencyMhz);
   // Best-band-now: its own per-band sweep, only re-run on Station/
@@ -91,6 +98,11 @@ export default function ReachPage() {
           ) : null}
           <ReachSummaryStrip coverageResult={result} bandRankings={bandRankings} />
           <CoverageLegend />
+          <ToggleSwitch
+            checked={showTerminator}
+            onChange={setShowTerminator}
+            label="Greyline (day/night terminator)"
+          />
         </div>
       }
       canvas={
@@ -103,6 +115,8 @@ export default function ReachPage() {
           coverageStation={coverageStation}
           target={target}
           onMapClick={handleMapClick}
+          atMs={conditions.atMs}
+          showTerminator={showTerminator}
         />
       }
     />
