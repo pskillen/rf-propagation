@@ -33,7 +33,11 @@ discrete feature phase 10's transport control retrofits.
 | Hop-band/reliability shading + legend | Shipped | Hue by `hopCount`, opacity by `reliability`, zero fill for the skip zone; a static always-visible legend — [coverage-surface.md](coverage-surface.md) |
 | Best-band-now summary strip | Shipped | Current band's reach extremes (from the already-computed grid) + a per-band mean-reliability ranking swept on Station/Conditions change — [target-selection.md](target-selection.md) |
 | Cell selection sets a target | Shipped | Map click records `ViewerState.target`; a same-surface `TargetPanel` until Path (phase 13) exists; registered with the URL codec — [target-selection.md](target-selection.md) |
-| The 3D globe | Not started | Phase 9 — Reach is 2D-map-only; the globe reuses this phase's exact shading formula |
+| Antenna directionality | Shipped (`fix/reach-directionality-antenna-greyline`) | The active antenna's real gain shape, not a flat nominal `gainDbi`, drives the coverage shading — [coverage-surface.md](coverage-surface.md#directionality) |
+| 2D greyline (terminator + sun marker) | Shipped (`fix/reach-directionality-antenna-greyline`) | Dashed terminator line, sun marker, best-effort night shading, local toggle (default on) — [greyline.md](greyline.md) |
+| Coverage/band-ranking/greyline recompute cadence | Shipped (`fix/reach-coverage-recompute-cadence`) | Auto-recompute throttled to Conditions changing meaningfully (~60s of live-clock drift, or any non-time field), not every 1s clock tick; live-drag stays instant/unthrottled — [coverage-surface.md](coverage-surface.md#recompute-cadence) |
+| Greyline antimeridian world-copy anchoring | Shipped (`fix/greyline-antimeridian-wrap`) | The terminator ring/sun marker now re-anchor to the map's current center longitude on every pan/zoom, instead of a fixed anchor with no relationship to the view — fixes the terminator tearing/vanishing after panning east or west across several world copies — [greyline.md](greyline.md#antimeridian-handling) |
+| The 3D globe | Not started | Phase 9 — Reach is 2D-map-only; the globe reuses this phase's exact shading formula, and imports this phase's `solarTerminator.ts` rather than re-porting it |
 | Transport control / realism unlock / permalink / presets | Not started | Phase 10's discrete F7 tickets; live-drag response here is the standing constraint those tickets build UI around |
 | Full Path view / verdict table | Not started | Phase 13 — Slice 5 only records a target and shows a minimal same-surface summary |
 | Per-operator licence class | Not started | Inherited gap from phase 7 (`BandChips.tsx`) — "best band now" ranks all of `UK_AMATEUR_BANDS` unfiltered, since no licence-class model exists anywhere yet |
@@ -42,8 +46,9 @@ discrete feature phase 10's transport control retrofits.
 
 | Doc | Covers |
 | --- | --- |
-| [coverage-surface.md](coverage-surface.md) | The map, live-draggable marker, `CoverageCanvasLayer`, cell↔lat/lon projection, and the hue/opacity shading scheme + legend |
+| [coverage-surface.md](coverage-surface.md) | The map, live-draggable marker, `CoverageCanvasLayer`, cell↔lat/lon projection, the hue/opacity shading scheme + legend, and antenna directionality |
 | [target-selection.md](target-selection.md) | Reach-extremes extraction, the best-band-now per-band ranking, and cell-selection target recording |
+| [greyline.md](greyline.md) | The terminator line, sun marker, night-shading polygon, and the local greyline toggle |
 
 ## Concepts
 

@@ -15,6 +15,7 @@ import { MapContainer, Marker, TileLayer, useMap, useMapEvents } from 'react-lea
 import type { Station } from '@core/domain/station/types';
 import type { CoverageGridResult } from '@core/domain/propagation/coverageGrid';
 import { CoverageCanvasLayer, type CoveragePass } from './CoverageCanvasLayer.ts';
+import TerminatorLayer from './TerminatorLayer.tsx';
 import classes from './ReachMap.module.css';
 
 const DEFAULT_ZOOM = 5;
@@ -126,6 +127,16 @@ export interface ReachMapProps {
   target: { lat: number; lon: number } | null;
   /** Fires on a map click/tap (not drag) -- sets the target (Slice 5). */
   onMapClick: (lat: number, lon: number) => void;
+  /**
+   * Conditions' current instant (fix/reach-directionality-antenna-
+   * greyline, Slice 5) -- drives the terminator line/sun marker's
+   * position. Optional so existing callers/tests that don't care about
+   * the greyline can omit it; `showTerminator` defaults to hidden when
+   * `atMs` is absent regardless of its own value.
+   */
+  atMs?: number;
+  /** Local Reach-only greyline toggle (Slice 5) -- default on, owned by ReachPage. */
+  showTerminator?: boolean;
   /** Test seam only -- lets tests reach the underlying Leaflet Marker instance to fire drag/dragend without simulating real pointer geometry (jsdom has no layout engine). */
   markerRef?: Ref<L.Marker>;
   /** Test seam only -- same rationale as `markerRef`, for the map's own `click` event. */
@@ -141,6 +152,8 @@ export default function ReachMap({
   coverageStation,
   target,
   onMapClick,
+  atMs,
+  showTerminator,
   markerRef,
   mapRef,
 }: ReachMapProps) {
@@ -158,6 +171,9 @@ export default function ReachMap({
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
         <CoverageLayer result={coverageResult} pass={coveragePass} station={coverageStation} />
+        {atMs !== undefined ? (
+          <TerminatorLayer atMs={atMs} visible={showTerminator ?? false} />
+        ) : null}
         <Marker
           ref={markerRef}
           position={[station.qth.lat, station.qth.lon]}

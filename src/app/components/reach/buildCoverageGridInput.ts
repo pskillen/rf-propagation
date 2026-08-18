@@ -88,9 +88,13 @@ export function buildCoverageGridInput(
     layers: layerStates(conditions.driver.sfi, conditions.driver.kp, solarZenithDeg, geomagLatDeg),
     ssn: ssnFromSfi(conditions.driver.sfi),
     txPowerW: station.powerW,
-    txAntennaGainDbi: activeAntenna.gainDbi,
+    // Slice 1 (fix/reach-directionality-antenna-greyline): the whole TX
+    // antenna, not just its flat gainDbi -- the coverage grid now shapes
+    // gain by elevation/azimuth per cell (coverageGrid.ts).
+    txAntenna: activeAntenna,
     // Symmetric reference receiver (phase 3's own LinkBudgetInput doc):
     // same antenna gain as TX until a real antenna-pattern lookup exists.
+    // Still a flat number -- Slice 1 is scoped to the TX side only.
     rxAntennaGainDbi: activeAntenna.gainDbi,
     groundType: conditions.ground,
     noiseEnvironment: station.noiseEnvironment,

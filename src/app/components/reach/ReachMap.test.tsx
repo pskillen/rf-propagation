@@ -169,4 +169,72 @@ describe('ReachMap', () => {
       expect(container.querySelectorAll('.leaflet-marker-icon')).toHaveLength(2);
     });
   });
+
+  describe('Slice 5 -- 2D terminator and sun marker (greyline)', () => {
+    const SOLSTICE_NOON_UTC = Date.UTC(2024, 5, 20, 12, 0, 0);
+
+    it('renders no terminator layer when atMs is omitted (existing callers/tests unaffected)', async () => {
+      const { container } = render(
+        <ReachMap
+          station={DEFAULT_STATION}
+          onStationDrag={() => {}}
+          onStationDragEnd={() => {}}
+          {...DEFAULT_PROPS}
+        />,
+      );
+
+      await waitFor(() => {
+        expect(container.querySelector('.leaflet-marker-icon')).not.toBeNull();
+      });
+      expect(container.querySelectorAll('.leaflet-overlay-pane path')).toHaveLength(0);
+    });
+
+    it('renders the terminator line + sun marker when atMs is supplied and showTerminator is true', async () => {
+      const { container } = render(
+        <ReachMap
+          station={DEFAULT_STATION}
+          onStationDrag={() => {}}
+          onStationDragEnd={() => {}}
+          {...DEFAULT_PROPS}
+          atMs={SOLSTICE_NOON_UTC}
+          showTerminator
+        />,
+      );
+
+      await waitFor(() => {
+        expect(container.querySelectorAll('.leaflet-overlay-pane path').length).toBeGreaterThan(0);
+      });
+    });
+
+    it('toggling showTerminator to false hides the layer', async () => {
+      const { container, rerender } = render(
+        <ReachMap
+          station={DEFAULT_STATION}
+          onStationDrag={() => {}}
+          onStationDragEnd={() => {}}
+          {...DEFAULT_PROPS}
+          atMs={SOLSTICE_NOON_UTC}
+          showTerminator
+        />,
+      );
+      await waitFor(() => {
+        expect(container.querySelectorAll('.leaflet-overlay-pane path').length).toBeGreaterThan(0);
+      });
+
+      rerender(
+        <ReachMap
+          station={DEFAULT_STATION}
+          onStationDrag={() => {}}
+          onStationDragEnd={() => {}}
+          {...DEFAULT_PROPS}
+          atMs={SOLSTICE_NOON_UTC}
+          showTerminator={false}
+        />,
+      );
+
+      await waitFor(() => {
+        expect(container.querySelectorAll('.leaflet-overlay-pane path')).toHaveLength(0);
+      });
+    });
+  });
 });

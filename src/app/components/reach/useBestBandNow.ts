@@ -29,6 +29,7 @@ import type { Conditions } from '@core/domain/conditions/types';
 import type { CoverageGridResult } from '@core/domain/propagation/coverageGrid';
 import { UK_AMATEUR_BANDS, bandMidpointMhz } from '@core/domain/bandCatalog';
 import { CoverageGridClient } from '@integrations/propagation/coverageGridClient';
+import { useThrottledConditions } from '../../hooks/useThrottledConditions.ts';
 import { buildCoverageGridInput } from './buildCoverageGridInput.ts';
 import { rankBandsByMeanReliability, type BandRanking } from './reachSummary.ts';
 
@@ -60,6 +61,19 @@ export function useBestBandNow(
 
   const [rankings, setRankings] = useState<BandRanking[]>([]);
 
+  // Gated on `throttledConditions`, not `conditions` directly -- same
+  // reasoning as `useReachCoverage.ts`'s auto-recompute effect, but the
+  // stakes are higher here: this effect runs a FULL coverage-grid sweep
+  // PER BAND (9 sequential coarse+fine sweeps across `UK_AMATEUR_BANDS`),
+  // so depending directly on `conditions` (which changes identity every
+  // ~1s while `Conditions.liveNow` is true) turned every live clock tick
+  // into 9x the per-tick work `useReachCoverage` does -- likely the single
+  // largest contributor to the reported OOM/sluggishness. `conditions`
+  // itself (not the throttled value) is still used inside `run()`, since
+  // this effect only actually runs on a meaningful change and should use
+  // that render's fresh data when it does.
+  const throttledConditions = useThrottledConditions(conditions);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -86,7 +100,8 @@ export function useBestBandNow(
     return () => {
       cancelled = true;
     };
-  }, [station, conditions]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [station, throttledConditions]);
 
   return rankings;
 }

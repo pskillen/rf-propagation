@@ -5,6 +5,7 @@
  * criterion, and the correction to mk1's tranche-2 planning).
  */
 import { describe, expect, it } from 'vitest';
+import type { AntennaConfig } from '../station/types';
 import { layerStates } from './layers';
 import { ssnFromSfi } from './losses';
 import { computeCoverageGrid, type CoverageGridInput } from './coverageGrid';
@@ -13,9 +14,18 @@ import { generateIllustrationRays } from './illustrationRays';
 const EQUINOX_SOLAR_NOON_UTC = Date.UTC(2024, 2, 20, 12, 0, 0);
 const EQUINOX_MIDNIGHT_UTC = Date.UTC(2024, 2, 20, 0, 0, 0);
 
+/** See coverageGrid.test.ts's own STANDARD_ANTENNA doc -- same azimuth-invariant control case. */
+const STANDARD_ANTENNA: AntennaConfig = {
+  id: 'standard-test-antenna',
+  name: 'Test vertical',
+  family: 'omnidirectional-vertical',
+  heightM: 10,
+  gainDbi: 6,
+};
+
 const STANDARD_STATION = {
   txPowerW: 100,
-  txAntennaGainDbi: 6,
+  txAntenna: STANDARD_ANTENNA,
   rxAntennaGainDbi: 6,
   groundType: 'land' as const,
   noiseEnvironment: 'rural' as const,

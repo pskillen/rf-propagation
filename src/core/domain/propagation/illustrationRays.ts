@@ -25,6 +25,7 @@
  * coverageGrid.ts/linkBudget.ts, and reused here unchanged).
  */
 
+import { elevationGainDbi } from '../antenna/antennaPattern';
 import { destinationPoint, type GeoPoint } from './greatCircle';
 import { groundRangePerHopKm, slantPathLengthKm } from './geometry';
 import type { LayerId } from './layers';
@@ -250,7 +251,18 @@ function traceRay(
       hops,
       frequencyMhz: context.frequencyMhz,
       txPowerW: context.txPowerW,
-      txAntennaGainDbi: context.txAntennaGainDbi,
+      // Slice 1 (fix/reach-directionality-antenna-greyline): same
+      // per-cell antenna-aware gain coverageGrid.ts's sweep now uses --
+      // this trace shares `context.txAntenna`, so a ray's illustrated
+      // outcome stays consistent with what the grid would compute at the
+      // same azimuth/elevation (still independent BY CONSTRUCTION per
+      // this module's own header -- neither calls the other).
+      txAntennaGainDbi: elevationGainDbi(
+        context.txAntenna,
+        elevationDeg,
+        azimuthDeg,
+        context.frequencyMhz,
+      ),
       rxAntennaGainDbi: context.rxAntennaGainDbi,
       groundType: context.groundType,
       noiseEnvironment: context.noiseEnvironment,

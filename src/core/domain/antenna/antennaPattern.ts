@@ -66,6 +66,16 @@ export function antennaGain(
       return azimuthGain * elevationGain;
     }
     case 'multi-lobe-conical': {
+      // Straight, level, resonant/travelling-wave long-wire elevation
+      // pattern (classic E(theta) long-wire formula, measured from the
+      // wire's own axis) -- NOT an inverted-V, sloper, or inverted-L; none
+      // of those bent/sloped geometries are representable by this
+      // single-axis derivation. `phiDeg` is accepted (every case in this
+      // switch shares one signature) but intentionally unused here: a real
+      // long wire's lobes point in specific compass directions along the
+      // wire's run, but rotating this pattern with azimuth is a separate,
+      // not-yet-modelled gap -- see
+      // `tmp/mvp-plan/gaps/wire-antenna-configurations.md`.
       const wireLengthWavelengths = antenna.wireLengthWavelengths ?? 2;
       if (thetaRad === 0 || thetaRad === Math.PI) return 0; // avoid division by zero at poles
       const denominator = 1 - Math.cos(thetaRad);
