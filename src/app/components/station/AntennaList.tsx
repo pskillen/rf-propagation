@@ -39,11 +39,18 @@ export interface AntennaListProps {
   onDraftChange?: (draft: AntennaConfig | null) => void;
 }
 
+// Label tightened (this slice) from "Multi-lobe (long wire)" -- the
+// `multi-lobe-conical` id is left alone (persisted stations already store
+// that string; renaming the id would need a load-path migration, see
+// `tmp/mvp-plan/gaps/wire-antenna-configurations.md`), but the label now
+// says what the formula actually models: a straight, level, resonant/
+// travelling-wave long wire -- NOT an inverted-V, sloper, or inverted-L,
+// none of which this formula's derivation represents.
 const FAMILY_OPTIONS: ComboboxOption<AntennaPatternFamily>[] = [
   { value: 'omnidirectional-vertical', label: 'Omnidirectional vertical' },
   { value: 'bidirectional-transverse', label: 'Bidirectional (dipole)' },
   { value: 'directional-lobe', label: 'Directional (beam)' },
-  { value: 'multi-lobe-conical', label: 'Multi-lobe (long wire)' },
+  { value: 'multi-lobe-conical', label: 'Long wire (straight, level)' },
 ];
 
 /**
@@ -52,14 +59,32 @@ const FAMILY_OPTIONS: ComboboxOption<AntennaPatternFamily>[] = [
  * makes sense for these. WIDENED (Slice 2) from `directional-lobe` alone
  * to also include `bidirectional-transverse`: a dipole's figure-eight has
  * a real azimuth term (`Math.abs(Math.cos(...))`), the form just never
- * exposed it. `multi-lobe-conical` stays excluded -- its azimuth term is
- * unused by the formula (a separate, out-of-scope gap, see this phase's
- * plan file), so a heading field for it would be a lie.
+ * exposed it.
+ *
+ * WIDENED AGAIN (this slice) to also include `multi-lobe-conical`: a real
+ * long wire's lobes DO point in specific compass directions along the
+ * wire's run, so recording a heading is legitimate even though
+ * `antennaGain`'s `multi-lobe-conical` case doesn't yet rotate its pattern
+ * with `phiDeg` -- that's a real, separate, and already-flagged modelling
+ * gap (see `AZIMUTH_NOT_MODELLED_HINT` below and
+ * `tmp/mvp-plan/gaps/wire-antenna-configurations.md`), not a reason to
+ * keep the operator from recording the antenna's actual orientation.
  */
 const HEADING_FAMILIES = new Set<AntennaPatternFamily>([
   'directional-lobe',
   'bidirectional-transverse',
+  'multi-lobe-conical',
 ]);
+
+/**
+ * Shown under the heading field only for `multi-lobe-conical`, where
+ * recording an azimuth is honest (it's the wire's real-world run) but the
+ * modelled pattern doesn't yet use it -- see `HEADING_FAMILIES`'s doc
+ * comment. Consistent with how this codebase flags known-deviations inline
+ * rather than silently implying full support.
+ */
+const AZIMUTH_NOT_MODELLED_HINT =
+  "Recorded, but the long-wire pattern doesn't yet rotate with it -- see gaps/wire-antenna-configurations.md.";
 
 function generateAntennaId(): string {
   return `antenna-${Math.random().toString(36).slice(2, 10)}`;
@@ -397,7 +422,10 @@ export default function AntennaList({
           />
         </FormField>
         {showHeadingField ? (
-          <FormField label="Heading (° azimuth)">
+          <FormField
+            label="Heading (° azimuth)"
+            hint={family === 'multi-lobe-conical' ? AZIMUTH_NOT_MODELLED_HINT : undefined}
+          >
             <TextInput
               variant="plain"
               type="number"

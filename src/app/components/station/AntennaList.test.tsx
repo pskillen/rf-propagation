@@ -138,7 +138,7 @@ describe('AntennaList', () => {
     expect(station.antennas[0].name).toBe('Dipole');
   });
 
-  it('shows the heading field for directional-lobe and bidirectional-transverse, and hides it for the other two families', () => {
+  it('shows the heading field for directional-lobe, bidirectional-transverse, and multi-lobe-conical, and hides it only for omnidirectional-vertical', () => {
     const onStationChange = vi.fn();
     render(
       <DesignSystemV2Provider>
@@ -169,8 +169,10 @@ describe('AntennaList', () => {
     selectFamily('Omnidirectional', 'Omnidirectional vertical');
     expect(screen.queryByLabelText('Heading (° azimuth)')).not.toBeInTheDocument();
 
-    selectFamily('Multi-lobe', 'Multi-lobe (long wire)');
-    expect(screen.queryByLabelText('Heading (° azimuth)')).not.toBeInTheDocument();
+    selectFamily('Long wire', 'Long wire (straight, level)');
+    expect(screen.getByLabelText('Heading (° azimuth)')).toBeInTheDocument();
+    // Honest caveat: the field is present, but the pattern doesn't rotate with it yet.
+    expect(screen.getByText(/doesn't yet rotate with it/)).toBeInTheDocument();
   });
 
   it("an edited dipole's azimuthDeg round-trips through mergeStation correctly", () => {
