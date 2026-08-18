@@ -9,15 +9,23 @@ import { useEffect, useState } from 'react';
 import { useDebouncedValue } from '@mantine/hooks';
 import type { GroundType } from '@core/domain/propagation/losses';
 import { DEFAULT_CONDITIONS } from '@core/domain/conditions/defaults';
+import { UK_AMATEUR_BANDS } from '@core/domain/bandCatalog';
 import { conditionsUrlStateToInitialTime } from '../../lib/urlState/fields/conditions.ts';
 import type { ConditionsUrlState } from '../../lib/urlState/types.ts';
 import { useConditions } from '../../hooks/useConditions.ts';
 import { describeDriverProvenance, useConditionsDriver } from '../../hooks/useConditionsDriver.ts';
 import { useViewerUrlState } from '../../hooks/useViewerUrlState.ts';
 import { Button, SegmentedControl, type SegmentedControlOption } from '../v2/index.ts';
+import BandChips from './BandChips.tsx';
+import FrequencyField from './FrequencyField.tsx';
 import ManualDriverFields from './ManualDriverFields.tsx';
 import TimeScrubber from './TimeScrubber.tsx';
 import classes from './ConditionsBar.module.css';
+
+function bandMidpointMhz(bandId: string): number {
+  const band = UK_AMATEUR_BANDS.find((b) => b.id === bandId) ?? UK_AMATEUR_BANDS[0];
+  return Math.round(((band.minMhz + band.maxMhz) / 2) * 1000) / 1000;
+}
 
 // Matches the address-search field's own debounce interval
 // (`QthPicker.tsx`'s `ADDRESS_SEARCH_DEBOUNCE_MS`) — "debounce the write,
@@ -56,6 +64,15 @@ export default function ConditionsBar() {
     useConditionsDriver(initialManual);
   const [editing, setEditing] = useState(false);
 
+  const [bandId, setBandId] = useState(urlState.bandId);
+  const selectedBand = UK_AMATEUR_BANDS.find((band) => band.id === bandId) ?? UK_AMATEUR_BANDS[0];
+  const [frequencyMhz, setFrequencyMhz] = useState(() => bandMidpointMhz(bandId));
+
+  function selectBand(nextBandId: string) {
+    setBandId(nextBandId);
+    setFrequencyMhz(bandMidpointMhz(nextBandId));
+  }
+
   const [debouncedAtMs] = useDebouncedValue(atMs, URL_WRITE_DEBOUNCE_MS);
 
   useEffect(() => {
@@ -68,14 +85,14 @@ export default function ConditionsBar() {
       kp: driver.kind === 'live' ? undefined : driver.kp,
       gnd: ground,
     };
-    setUrlState({ ...urlState, conditions: nextConditions });
+    setUrlState({ ...urlState, conditions: nextConditions, bandId });
     // `urlState` deliberately excluded: this effect only needs to react
-    // to Conditions' own fields changing, not to re-fire whenever the
-    // decoded URL state object gets a new identity (e.g. from this same
-    // write) — `surface`/`station`/`bandId` are read fresh from the
-    // latest render's `urlState` when this does run.
+    // to Conditions'/band's own fields changing, not to re-fire whenever
+    // the decoded URL state object gets a new identity (e.g. from this
+    // same write) — `surface`/`station` are read fresh from the latest
+    // render's `urlState` when this does run.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedAtMs, liveNow, driver.kind, driver.sfi, driver.kp, ground]);
+  }, [debouncedAtMs, liveNow, driver.kind, driver.sfi, driver.kp, ground, bandId]);
 
   const provenance = describeDriverProvenance(driver);
 
@@ -83,7 +100,7 @@ export default function ConditionsBar() {
     <div className={classes.root} data-testid="conditions-bar">
       <div className={classes.compactRow}>
         <span className={classes.summary} title={provenance}>
-          SFI {driver.sfi} · Kp {driver.kp} ·{' '}
+          {selectedBand.label} @ {frequencyMhz} MHz · SFI {driver.sfi} · Kp {driver.kp} ·{' '}
           <span className={classes.provenance}>{provenance}</span>
         </span>
         <Button
@@ -98,6 +115,15 @@ export default function ConditionsBar() {
 
       {editing ? (
         <div className={classes.expanded}>
+          <div className={classes.bandSection}>
+            <BandChips bandId={bandId} onChange={selectBand} />
+            <FrequencyField
+              band={selectedBand}
+              frequencyMhz={frequencyMhz}
+              onChange={setFrequencyMhz}
+            />
+          </div>
+
           <TimeScrubber atMs={atMs} liveNow={liveNow} onScrub={scrubTo} onGoLive={goLive} />
 
           <div className={classes.driverSection}>

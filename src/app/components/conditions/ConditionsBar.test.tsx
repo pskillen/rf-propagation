@@ -78,4 +78,31 @@ describe('ConditionsBar', () => {
     fireEvent.click(screen.getByText('Edit conditions'));
     expect(screen.getByLabelText('Live now')).toBeChecked();
   });
+
+  it('defaults to the 40m band at its midpoint frequency, shown in the compact summary', () => {
+    renderBar();
+    expect(screen.getByText(/40 m @ 7.1 MHz/)).toBeInTheDocument();
+  });
+
+  it('reveals band chips and the frequency field behind Edit, and resets frequency on band change', () => {
+    renderBar();
+    fireEvent.click(screen.getByText('Edit conditions'));
+
+    expect(screen.getByRole('group', { name: 'Band' })).toBeInTheDocument();
+    const frequencyInput = screen.getByLabelText('Frequency (MHz)') as HTMLInputElement;
+    expect(frequencyInput.value).toBe('7.1');
+
+    const button20m = screen
+      .getAllByRole('button')
+      .find((btn) => btn.textContent?.startsWith('20 m'));
+    fireEvent.click(button20m!);
+
+    expect(screen.getByText(/20 m @ 14.175 MHz/)).toBeInTheDocument();
+    expect((screen.getByLabelText('Frequency (MHz)') as HTMLInputElement).value).toBe('14.175');
+  });
+
+  it('seeds the selected band from the URL b param', () => {
+    renderBar('/?b=15m');
+    expect(screen.getByText(/15 m @/)).toBeInTheDocument();
+  });
 });

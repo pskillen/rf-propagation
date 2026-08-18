@@ -42,6 +42,14 @@
   padding-top: 4px;
 }
 
+.bandSection {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+}
+
 .driverSection {
   display: flex;
   flex-direction: column;
