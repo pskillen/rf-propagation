@@ -16,6 +16,7 @@ import type { Station } from '@core/domain/station/types';
 import type { Conditions } from '@core/domain/conditions/types';
 import type { CoverageGridResult } from '@core/domain/propagation/coverageGrid';
 import { CoverageGridClient } from '@integrations/propagation/coverageGridClient';
+import { useThrottledConditions } from '../../hooks/useThrottledConditions.ts';
 import { buildCoverageGridInput } from './buildCoverageGridInput.ts';
 
 export type CoveragePass = 'coarse' | 'fine';
@@ -99,9 +100,37 @@ export function useReachCoverage(
   // Recompute whenever Station/Conditions/frequency change for reasons
   // OTHER than a live drag (e.g. editing power/antenna/SFI in the chrome
   // bars) -- Reach's shading must reflect those too, not just marker drags.
+  //
+  // Gated on `throttledConditions`, NOT `conditions`/`recompute` directly:
+  // while `Conditions.liveNow` is true, `useConditions` ticks `atMs`
+  // forward every ~1s, forever. `recompute`'s identity changes on every one
+  // of those ticks (it depends on `conditions`), so depending on `recompute`
+  // here re-fires a full coarse+fine coverage-grid sweep roughly once a
+  // second for as long as Reach stays open -- the reported OOM/sluggishness
+  // bug (the human's own fix suggestion: "we could drop this to 1 minute
+  // and the user would still not see any issues"). `throttledConditions`
+  // only changes identity on a MEANINGFUL Conditions change -- a non-atMs
+  // field (driver/ground/liveNow -- SFI/Kp/ground edits, scrubbing to an
+  // explicit time, "go live") passes through immediately; a live-clock-only
+  // atMs change is held back until it has moved >= 60s. See
+  // useThrottledConditions.ts.
+  //
+  // `recompute` is deliberately NOT in this effect's deps: React still
+  // calls this effect with the CURRENT render's `recompute` closure (fresh
+  // station/conditions/frequencyMhz) whenever it actually runs -- omitting
+  // it from the dep array only stops React from re-running the effect on
+  // renders where `recompute`'s identity changed for a reason
+  // (`throttledConditions` unchanged) that isn't itself a dep change.
+  //
+  // The live-drag path (`ReachPage.tsx`'s `handleStationDrag`) calls
+  // `recompute(qthOverride)` directly, bypassing this effect entirely, and
+  // stays fully unthrottled -- this only changes how often the AUTOMATIC
+  // recompute fires, never the manual one.
+  const throttledConditions = useThrottledConditions(conditions);
   useEffect(() => {
     recompute();
-  }, [recompute]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [station, throttledConditions, frequencyMhz]);
 
   return { result: state.result, pass: state.pass, recompute };
 }
