@@ -112,6 +112,27 @@ exactly for F6.3's "reads consistently with the 2D map."
   straight from `HOP_BAND_COLORS`, so the legend can never drift from the
   actual shading formula.
 
+### Directionality
+
+`fix/reach-directionality-antenna-greyline` wired the active antenna's
+actual gain shape into the shading: `CoverageGridInput.txAntenna` (the
+whole `AntennaConfig`, changed from a flat `txAntennaGainDbi: number`)
+feeds `elevationGainDbi(txAntenna, elevationDeg, azimuthDeg,
+frequencyMhz)` **per cell** in `coverageGrid.ts`'s sweep, using the
+cell's own already-in-scope elevation/azimuth — so rotating a beam's
+heading or switching antenna family now visibly reshapes the coverage
+picture (a beam pointed north shades north more brightly than south),
+where it previously fed every azimuth the antenna's flat nominal
+`gainDbi` regardless of pattern. Scoped to the **TX side only** —
+`rxAntennaGainDbi` stays the existing flat symmetric-reference-receiver
+simplification. Benchmarked at ~25ms for a full-resolution sweep with a
+directional antenna, comfortably inside the ~150ms coarse-pass budget,
+so no precomputed-peak-gain optimisation was needed. See
+[../station/antenna-model.md](../station/antenna-model.md) for the gain
+math itself; `multi-lobe-conical`'s missing azimuthal-lobing formula
+(so a long-wire/rhombic's shading stays azimuth-invariant regardless of
+heading) is a known, out-of-scope gap documented there.
+
 ## Deviations
 
 - **Station/Conditions lifted into `ViewerState`.** Phases 6/7 kept both
