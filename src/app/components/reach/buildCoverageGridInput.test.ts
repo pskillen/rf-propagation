@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { ssnFromSfi } from '@core/domain/propagation/losses';
 import { DEFAULT_STATION } from '@core/domain/station/defaults';
 import { DEFAULT_CONDITIONS } from '@core/domain/conditions/defaults';
-import { buildCoverageGridInput } from './buildCoverageGridInput.ts';
+import { buildCoverageGridInput, computeLayerStates } from './buildCoverageGridInput.ts';
 
 describe('buildCoverageGridInput', () => {
   it('maps Station/Conditions fields onto CoverageGridInput unchanged', () => {
@@ -40,5 +40,18 @@ describe('buildCoverageGridInput', () => {
     expect(input.txLon).toBe(20);
     // station.qth itself is untouched by the override.
     expect(DEFAULT_STATION.qth.lat).not.toBe(10);
+  });
+});
+
+describe('computeLayerStates', () => {
+  it("matches buildCoverageGridInput.layers exactly for the same station/conditions/qth (phase 9's globe reuses this, not a second computation)", () => {
+    const input = buildCoverageGridInput(DEFAULT_STATION, DEFAULT_CONDITIONS, 14.2);
+    const layers = computeLayerStates(DEFAULT_STATION.qth, DEFAULT_CONDITIONS);
+    expect(layers).toEqual(input.layers);
+  });
+
+  it('produces four layer states (D, E, F1, F2)', () => {
+    const layers = computeLayerStates(DEFAULT_STATION.qth, DEFAULT_CONDITIONS);
+    expect(layers.map((l) => l.id).sort()).toEqual(['D', 'E', 'F1', 'F2']);
   });
 });

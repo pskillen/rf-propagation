@@ -4,3 +4,12 @@
   gap: 12px;
   min-width: 0;
 }
+
+.globeLoading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  min-height: 320px;
+  color: var(--dsv2-text-secondary);
+}
