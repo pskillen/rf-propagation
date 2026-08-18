@@ -16,7 +16,7 @@
 // context; every mutation still funnels through `mergeStation` for
 // persistence exactly as before.
 import { useCallback, useState } from 'react';
-import type { Station } from '@core/domain/station/types';
+import type { AntennaConfig, Station } from '@core/domain/station/types';
 import { useViewerState } from '../../state/viewerState.tsx';
 import { Button, Panel } from '../v2/index.ts';
 import AntennaList from './AntennaList.tsx';
@@ -34,6 +34,10 @@ export default function StationBar() {
     [setState],
   );
   const [editing, setEditing] = useState(false);
+  // Slice 3 (fix/reach-directionality-antenna-greyline): AntennaList's own
+  // in-progress add/edit form draft, published up via its onDraftChange --
+  // component-local, not ViewerState (nothing outside this bar needs it).
+  const [draftAntenna, setDraftAntenna] = useState<AntennaConfig | null>(null);
 
   const activeAntenna =
     station.antennas.find((antenna) => antenna.id === station.activeAntennaId) ??
@@ -71,8 +75,13 @@ export default function StationBar() {
                 antennas={station.antennas}
                 activeAntennaId={station.activeAntennaId}
                 onStationChange={setStation}
+                onDraftChange={setDraftAntenna}
               />
-              <AntennaPatternPreview antenna={activeAntenna} />
+              {/* Slice 3: shows the in-progress add/edit draft while the
+                  form is open, falling back to the active antenna
+                  otherwise -- previously always activeAntenna, which was
+                  wrong while a form was open (the gap this slice fixes). */}
+              <AntennaPatternPreview antenna={draftAntenna ?? activeAntenna} />
             </div>
           </Panel>
           <Panel title="Noise environment">

@@ -74,4 +74,79 @@ describe('StationBar', () => {
     renderBar();
     expect(screen.getByText(/250 W/)).toBeInTheDocument();
   });
+
+  /** The pattern preview's own SVG -- picked out of the tree by its aria-label, not just "the first <path>" (icons in the form also render <path>s). */
+  function previewPath() {
+    return screen
+      .getByRole('img', { name: /elevation gain pattern/i })
+      .querySelector('path')
+      ?.getAttribute('d');
+  }
+
+  function selectFamily(optionLabel: string) {
+    // Combobox swaps to a committed chip + "Change" link once a value is
+    // selected -- re-open search mode first if editing prefilled one.
+    const changeLink = screen.queryByText('Change');
+    if (changeLink) fireEvent.click(changeLink);
+
+    const familyInput = screen.getByPlaceholderText('Search pattern families…');
+    fireEvent.focus(familyInput);
+    fireEvent.change(familyInput, { target: { value: optionLabel } });
+    fireEvent.click(screen.getByText(optionLabel));
+  }
+
+  describe('Slice 3 -- pattern preview reflects the in-progress form draft', () => {
+    it('opening "+ Add antenna" and changing the height field updates the preview before submitting', () => {
+      renderBar();
+      fireEvent.click(screen.getByRole('button', { name: 'Edit station' }));
+      const initialPath = previewPath();
+
+      fireEvent.click(screen.getByText('+ Add antenna'));
+      selectFamily('Directional (beam)');
+      fireEvent.change(screen.getByLabelText('Height above ground (m)'), {
+        target: { value: '20' },
+      });
+
+      const draftPath = previewPath();
+      expect(draftPath).toBeTruthy();
+      expect(draftPath).not.toBe(initialPath);
+    });
+
+    it('closing the form without submitting reverts the preview to the active antenna', () => {
+      renderBar();
+      fireEvent.click(screen.getByRole('button', { name: 'Edit station' }));
+      const initialPath = previewPath();
+
+      fireEvent.click(screen.getByText('+ Add antenna'));
+      selectFamily('Directional (beam)');
+      fireEvent.change(screen.getByLabelText('Height above ground (m)'), {
+        target: { value: '20' },
+      });
+      expect(previewPath()).not.toBe(initialPath);
+
+      // Two "Cancel"-labelled buttons exist while the form is open (the
+      // toggle Pill re-labels itself, and the form's own Cancel action) --
+      // the form's own is the one inside the form itself (DOM order: pill
+      // row, then form).
+      const cancelButtons = screen.getAllByRole('button', { name: 'Cancel' });
+      fireEvent.click(cancelButtons[cancelButtons.length - 1]);
+      expect(previewPath()).toBe(initialPath);
+    });
+
+    it('editing the active antenna previews its draft, not the stale pre-edit display', () => {
+      renderBar();
+      fireEvent.click(screen.getByRole('button', { name: 'Edit station' }));
+      const initialPath = previewPath();
+
+      // Edit the default station's own dipole -- switching its family to a
+      // beam should visibly change the preview's shape immediately, before
+      // "Save changes" is ever clicked.
+      fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+      selectFamily('Directional (beam)');
+
+      const draftPath = previewPath();
+      expect(draftPath).toBeTruthy();
+      expect(draftPath).not.toBe(initialPath);
+    });
+  });
 });
