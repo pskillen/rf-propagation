@@ -1,7 +1,21 @@
 // Manual SFI/Kp entry (F4.7's third fallback tier) — same "local draft +
 // commit on blur/Enter" pattern as Station's PowerInput
 // (`../station/PowerInput.tsx`): don't call onCommit on every keystroke.
+//
+// `unlocked` (F7.3, phase 10's Slice 3) — while true, SFI's commit clamp
+// relaxes to `UNLOCKED_SFI_RANGE` (0-500) instead of the realistic
+// 60-300 range; Kp's own range is already the real 0-9 scale, so
+// unlocking it has no numeric effect (kept symmetrical rather than
+// special-cased). Either field is marked out-of-bounds (a
+// destructive-styled border + hint) whenever its CURRENT value sits
+// outside the REALISTIC range, regardless of the toggle.
 import { useState } from 'react';
+import {
+  isKpOutOfRealisticBounds,
+  isSfiOutOfRealisticBounds,
+  kpRange,
+  sfiRange,
+} from '../../lib/realismBounds.ts';
 import { FormField, TextInput } from '../v2/index.ts';
 import classes from './ManualDriverFields.module.css';
 
@@ -9,9 +23,15 @@ export interface ManualDriverFieldsProps {
   sfi: number;
   kp: number;
   onCommit: (sfi: number, kp: number) => void;
+  unlocked?: boolean;
 }
 
-export default function ManualDriverFields({ sfi, kp, onCommit }: ManualDriverFieldsProps) {
+export default function ManualDriverFields({
+  sfi,
+  kp,
+  onCommit,
+  unlocked = false,
+}: ManualDriverFieldsProps) {
   const [sfiDraft, setSfiDraft] = useState(String(sfi));
   const [kpDraft, setKpDraft] = useState(String(kp));
   const [editing, setEditing] = useState(false);
@@ -23,12 +43,21 @@ export default function ManualDriverFields({ sfi, kp, onCommit }: ManualDriverFi
     setKpDraft(String(kp));
   }
 
+  const sfiBounds = sfiRange(unlocked);
+  const kpBounds = kpRange(unlocked);
+
   function commit() {
     setEditing(false);
     const parsedSfi = Number(sfiDraft);
     const parsedKp = Number(kpDraft);
-    const validSfi = Number.isFinite(parsedSfi) && parsedSfi > 0 ? parsedSfi : sfi;
-    const validKp = Number.isFinite(parsedKp) && parsedKp >= 0 && parsedKp <= 9 ? parsedKp : kp;
+    const validSfi =
+      Number.isFinite(parsedSfi) && parsedSfi > 0
+        ? Math.min(sfiBounds.max, Math.max(sfiBounds.min, parsedSfi))
+        : sfi;
+    const validKp =
+      Number.isFinite(parsedKp) && parsedKp >= 0 && parsedKp <= 9
+        ? Math.min(kpBounds.max, Math.max(kpBounds.min, parsedKp))
+        : kp;
     setSfiDraft(String(validSfi));
     setKpDraft(String(validKp));
     if (validSfi === sfi && validKp === kp) return;
@@ -37,11 +66,17 @@ export default function ManualDriverFields({ sfi, kp, onCommit }: ManualDriverFi
 
   return (
     <div className={classes.root}>
-      <FormField label="SFI">
+      <FormField
+        label="SFI"
+        error={
+          isSfiOutOfRealisticBounds(sfi) ? 'Outside the realistic solar-cycle range' : undefined
+        }
+      >
         <TextInput
           variant="plain"
           type="number"
-          min={0}
+          min={sfiBounds.min}
+          max={sfiBounds.max}
           aria-label="Solar Flux Index"
           value={sfiDraft}
           onFocus={() => setEditing(true)}
@@ -52,12 +87,15 @@ export default function ManualDriverFields({ sfi, kp, onCommit }: ManualDriverFi
           }}
         />
       </FormField>
-      <FormField label="Kp">
+      <FormField
+        label="Kp"
+        error={isKpOutOfRealisticBounds(kp) ? 'Outside the 0-9 Kp scale' : undefined}
+      >
         <TextInput
           variant="plain"
           type="number"
-          min={0}
-          max={9}
+          min={kpBounds.min}
+          max={kpBounds.max}
           aria-label="Kp index"
           value={kpDraft}
           onFocus={() => setEditing(true)}

@@ -16,7 +16,13 @@ import type { ConditionsUrlState } from '../../lib/urlState/types.ts';
 import { describeDriverProvenance, useConditionsDriver } from '../../hooks/useConditionsDriver.ts';
 import { useViewerUrlState } from '../../hooks/useViewerUrlState.ts';
 import { useViewerState } from '../../state/viewerState.tsx';
-import { Button, SegmentedControl, type SegmentedControlOption } from '../v2/index.ts';
+import { clamp, frequencyRange, kpRange, sfiRange } from '../../lib/realismBounds.ts';
+import {
+  Button,
+  SegmentedControl,
+  ToggleSwitch,
+  type SegmentedControlOption,
+} from '../v2/index.ts';
 import BandChips from './BandChips.tsx';
 import FrequencyField from './FrequencyField.tsx';
 import ManualDriverFields from './ManualDriverFields.tsx';
@@ -134,6 +140,38 @@ export default function ConditionsBar({
     setFrequencyMhz(bandMidpointMhz(nextBandId));
   }
 
+  // Realism unlock (F7.3, phase 10's Slice 3). Off by default (F7.3's
+  // own AC) -- `DEFAULT_PLAYBACK.unrealismUnlocked` is already `false`.
+  //
+  // Toggling OFF clamps any currently out-of-range frequency/manual-driver
+  // value back into the locked bound (this phase's own "clamp, don't just
+  // re-hide" call) -- done directly in this handler (the toggle's own
+  // `onChange`), not in a `useEffect` keyed on the transition: the effect
+  // form was tried first and rejected by this repo's stricter
+  // react-hooks/refs-style lint rule ("calling setState synchronously
+  // within an effect can trigger cascading renders") -- the clamp only
+  // ever needs to run in direct response to this one user action anyway,
+  // so a plain conditional in the handler is both the simpler code and
+  // the one the lint rule actually wants.
+  const unlocked = viewerState.playback.unrealismUnlocked;
+  function setUnlocked(next: boolean) {
+    if (!next) {
+      const clampedFrequency = clamp(frequencyMhz, frequencyRange(false, selectedBand));
+      if (clampedFrequency !== frequencyMhz) setFrequencyMhz(clampedFrequency);
+      if (isManual) {
+        const clampedSfi = clamp(driver.sfi, sfiRange(false));
+        const clampedKp = clamp(driver.kp, kpRange(false));
+        if (clampedSfi !== driver.sfi || clampedKp !== driver.kp) {
+          setManualDriver(clampedSfi, clampedKp);
+        }
+      }
+    }
+    setViewerState((prev) => ({
+      ...prev,
+      playback: { ...prev.playback, unrealismUnlocked: next },
+    }));
+  }
+
   const [debouncedAtMs] = useDebouncedValue(atMs, URL_WRITE_DEBOUNCE_MS);
 
   useEffect(() => {
@@ -210,12 +248,20 @@ export default function ConditionsBar({
 
       {editing ? (
         <div className={classes.expanded}>
+          <ToggleSwitch
+            checked={unlocked}
+            onChange={setUnlocked}
+            label="Unrealistic values (sandbox mode)"
+            aria-label="Realism unlock"
+          />
+
           <div className={classes.bandSection}>
             <BandChips bandId={bandId} onChange={selectBand} />
             <FrequencyField
               band={selectedBand}
               frequencyMhz={frequencyMhz}
               onChange={setFrequencyMhz}
+              unlocked={unlocked}
             />
           </div>
 
@@ -226,6 +272,7 @@ export default function ConditionsBar({
               sfi={driver.sfi}
               kp={driver.kp}
               onCommit={(sfi, kp) => setManualDriver(sfi, kp)}
+              unlocked={unlocked}
             />
             {isManual ? (
               <Button variant="ghost" size="sm" onClick={clearManualDriver}>

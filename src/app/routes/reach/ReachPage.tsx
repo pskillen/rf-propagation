@@ -6,14 +6,17 @@
 // switch and the globe's own Display panel, in place, the same way.
 import { lazy, Suspense, useCallback, useMemo, useState } from 'react';
 import { coordsToLocator } from '@core/domain/maidenhead';
+import { UK_AMATEUR_BANDS } from '@core/domain/bandCatalog';
 import { mergeStation } from '@integrations/station/persistence';
 import SurfaceLayout from '../../components/layout/SurfaceLayout.tsx';
 import {
   Panel,
   SegmentedControl,
+  StatusBanner,
   ToggleSwitch,
   type SegmentedControlOption,
 } from '../../components/v2/index.ts';
+import { anyInputOutOfRealisticBounds } from '../../lib/realismBounds.ts';
 import CoverageLegend from '../../components/reach/CoverageLegend.tsx';
 import ReachMap from '../../components/reach/ReachMap.tsx';
 import ReachSummaryStrip from '../../components/reach/ReachSummaryStrip.tsx';
@@ -175,10 +178,33 @@ export default function ReachPage() {
   const sliceBearingDeg =
     activeAntenna?.family === 'directional-lobe' ? (activeAntenna.azimuthDeg ?? 0) : 0;
 
+  // "Not the real world" disclosure (F7.3, phase 10's Slice 3) -- shown
+  // on Reach AND the globe (both render inside this same page), wired
+  // from the single derived boolean the plan file calls for rather than
+  // duplicating the bounds check per surface.
+  const unrealismUnlocked = state.playback.unrealismUnlocked;
+  const selectedBand =
+    UK_AMATEUR_BANDS.find((band) => band.id === state.bandId) ?? UK_AMATEUR_BANDS[0];
+  const sandboxValuesInUse =
+    unrealismUnlocked &&
+    anyInputOutOfRealisticBounds({
+      sfi: conditions.driver.sfi,
+      kp: conditions.driver.kp,
+      heightM: activeAntenna.heightM,
+      frequencyMhz,
+      band: selectedBand,
+      powerW: station.powerW,
+    });
+
   return (
     <SurfaceLayout
       controls={
         <div className={classes.controls}>
+          {sandboxValuesInUse ? (
+            <StatusBanner tone="warning">
+              Sandbox values in use — this scenario isn&apos;t physically realistic.
+            </StatusBanner>
+          ) : null}
           {target ? (
             <TargetPanel station={station.qth} target={target} onClear={handleClearTarget} />
           ) : null}

@@ -153,6 +153,77 @@ be necessary for `createBrowserRouter`'s `useSearchParams()` to notice a
 directly-pushed URL at all inside this test environment (its internal
 history object doesn't listen for a bare `pushState`).
 
+## Slice 3 — Realism unlock (F7.3)
+
+**Where.** `src/app/lib/realismBounds.ts` — every locked/unlocked
+`min`/`max` pair, plus a `isXOutOfRealisticBounds`/`anyInputOutOfRealisticBounds`
+per field. The toggle itself (`ToggleSwitch`, labelled "Unrealistic
+values (sandbox mode)") lives in `ConditionsBar`'s expanded panel — the
+plan file flagged this as "the design docs don't specify exactly where;
+the Conditions bar is a reasonable home since most of what it unlocks is
+solar/frequency/antenna bounds," and this phase took that suggestion.
+Off by default (`DEFAULT_PLAYBACK.unrealismUnlocked === false`, F7.3's
+own AC).
+
+**Concrete bounds (this phase's own judgment call, not a spec value):**
+
+| Input          | Locked (realistic)                        | Unlocked                      |
+| -------------- | ----------------------------------------- | ----------------------------- |
+| SFI            | 60–300                                    | 0–500                         |
+| Kp             | 0–9 (the real scale — unlock is a no-op)  | 0–9                           |
+| Antenna height | 1–30 m                                    | 0.5–500 m                     |
+| Frequency      | the selected band's own `minMhz`/`maxMhz` | 1–30 MHz, ignoring band edges |
+| TX power       | 1–1500 W                                  | 1–100,000 W                   |
+
+Antenna height specifically: the plan file assumed mk1's own
+`MIN_HEIGHT_M`/`MAX_HEIGHT_M` had already been ported (phase 6) as this
+phase's locked bound. Verified against the actual repo and that
+constant does not exist — `AntennaList.tsx`'s height field has never had
+bounds at all. This phase adds `MIN_ANTENNA_HEIGHT_M`/
+`MAX_ANTENNA_HEIGHT_M` fresh, using the plan file's own suggested numbers
+since nothing else in the repo defines a locked range to match.
+
+**Relaxing bounds** is a per-control change, not a separate "unrealistic
+mode" input path: `FrequencyField`, `ManualDriverFields` (SFI/Kp),
+`PowerInput`, and `AntennaList`'s height field each take an `unlocked`
+prop and switch their commit-clamp/`min`/`max` accordingly.
+
+**Out-of-range marking:** each of those same controls marks itself (via
+`FormField`'s own `error` prop — a destructive-styled border + hint)
+whenever its CURRENT value sits outside the REALISTIC bound, regardless
+of whether the toggle is on right now — so switching back off doesn't
+retroactively make an unrealistic value look fine.
+
+**Clamp-on-lock-off** (this phase's own concrete choice for "turning the
+toggle off enforces realistic-only, doesn't just encourage it"): toggling
+OFF immediately clamps any currently out-of-range value back into the
+locked bound. `ConditionsBar` does this directly inside its toggle's own
+`onChange` handler (frequency, and SFI/Kp when the driver is currently
+`'manual'`); `StationBar` does the same in a `useEffect` keyed on the
+`unrealismUnlocked` prop transitioning true → false (TX power, the
+active antenna's height) — it can't hook the same click event directly,
+since the toggle itself lives in a different component (`ConditionsBar`).
+
+A `useEffect`-based version of `ConditionsBar`'s own clamp was tried
+first and rejected: this repo's stricter react-hooks lint rule ("calling
+setState synchronously within an effect can trigger cascading renders")
+flagged it. Since the clamp only ever needs to run in direct response to
+one user action (the toggle switching off), moving it into the toggle's
+own handler removed the effect entirely — simpler code, and lint-clean.
+
+**Sandbox-value disclosure** (F7.3's "every answer surface shows a 'not
+the real world' state"): `ReachPage` computes one derived boolean,
+`unrealismUnlocked && anyInputOutOfRealisticBounds(...)`, and shows a
+`StatusBanner` ("Sandbox values in use — this scenario isn't physically
+realistic.") when it's true — read by both the map and the globe view,
+since both render inside this same page, rather than duplicating the
+check per view.
+
+**Verified live** (`npm run dev`): unlocking, then setting frequency to
+25 MHz on the 40 m band, accepts the value, marks the field, and shows
+the sandbox banner; toggling back off immediately clamps the frequency
+to 7.2 MHz (the band's own max) and the banner disappears.
+
 ## Known gaps
 
 - **No dedicated `ReachPage`-level integration test for
@@ -162,3 +233,8 @@ history object doesn't listen for a bare `pushState`).
   identical two-line pattern directly against `ViewerState.playback`,
   reviewed but not independently integration-tested, given this phase's
   time budget.
+- **Antenna height clamp-on-lock-off only covers the ACTIVE antenna.**
+  A non-active antenna saved with an out-of-range height while unlocked
+  keeps that value until it becomes active; scoped out of this phase
+  given the time budget (no antenna-delete or per-antenna clamp sweep
+  exists to model this against either).

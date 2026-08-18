@@ -15,9 +15,11 @@
 // `station`/`setStation` below are just a thin view over the shared
 // context; every mutation still funnels through `mergeStation` for
 // persistence exactly as before.
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { AntennaConfig, Station } from '@core/domain/station/types';
+import { mergeStation } from '@integrations/station/persistence';
 import { useViewerState } from '../../state/viewerState.tsx';
+import { antennaHeightRange, clamp, txPowerRange } from '../../lib/realismBounds.ts';
 import { Button, Panel } from '../v2/index.ts';
 import AntennaList from './AntennaList.tsx';
 import AntennaPatternPreview from './AntennaPatternPreview.tsx';
@@ -29,6 +31,7 @@ import classes from './StationBar.module.css';
 export default function StationBar() {
   const { state, setState } = useViewerState();
   const station = state.station;
+  const unlocked = state.playback.unrealismUnlocked;
   const setStation = useCallback(
     (next: Station) => setState((prev) => ({ ...prev, station: next })),
     [setState],
@@ -43,6 +46,31 @@ export default function StationBar() {
     station.antennas.find((antenna) => antenna.id === station.activeAntennaId) ??
     station.antennas[0];
 
+  // Realism unlock (F7.3, phase 10's Slice 3): toggling OFF clamps any
+  // currently out-of-range value back into the locked bound, rather than
+  // merely hiding that it's out of range (this phase's own "clamp, don't
+  // just re-hide" call, documented in the plan file's Slice 3). Only
+  // fires on a true -> false transition, not on every render.
+  const wasUnlockedRef = useRef(unlocked);
+  useEffect(() => {
+    if (wasUnlockedRef.current && !unlocked) {
+      const clampedPowerW = clamp(station.powerW, txPowerRange(false));
+      const clampedHeightM = clamp(activeAntenna.heightM, antennaHeightRange(false));
+      if (clampedPowerW !== station.powerW || clampedHeightM !== activeAntenna.heightM) {
+        setStation(
+          mergeStation({
+            powerW: clampedPowerW,
+            antennas: station.antennas.map((antenna) =>
+              antenna.id === activeAntenna.id ? { ...antenna, heightM: clampedHeightM } : antenna,
+            ),
+          }),
+        );
+      }
+    }
+    wasUnlockedRef.current = unlocked;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [unlocked]);
+
   const summary = `${station.qth.locator} · ${activeAntenna.name} @ ${activeAntenna.heightM} m · ${station.powerW} W`;
 
   return (
@@ -52,7 +80,7 @@ export default function StationBar() {
           {summary}
         </p>
         <div className={classes.powerField}>
-          <PowerInput powerW={station.powerW} onStationChange={setStation} />
+          <PowerInput powerW={station.powerW} onStationChange={setStation} unlocked={unlocked} />
         </div>
         <Button
           className={classes.editToggle}
@@ -76,6 +104,7 @@ export default function StationBar() {
                 activeAntennaId={station.activeAntennaId}
                 onStationChange={setStation}
                 onDraftChange={setDraftAntenna}
+                unlocked={unlocked}
               />
               {/* Slice 3: shows the in-progress add/edit draft while the
                   form is open, falling back to the active antenna

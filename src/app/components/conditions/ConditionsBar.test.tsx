@@ -122,4 +122,35 @@ describe('ConditionsBar', () => {
     renderBar('/?b=15m');
     expect(screen.getByText(/15 m @/)).toBeInTheDocument();
   });
+
+  describe('realism unlock (F7.3)', () => {
+    it('is off by default, and the frequency field enforces the band range', () => {
+      renderBar();
+      fireEvent.click(screen.getByText('Edit conditions'));
+      expect(screen.getByLabelText('Realism unlock')).not.toBeChecked();
+    });
+
+    it('toggling on relaxes the frequency field beyond the band edges', () => {
+      renderBar();
+      fireEvent.click(screen.getByText('Edit conditions'));
+      fireEvent.click(screen.getByLabelText('Realism unlock'));
+
+      const frequencyInput = screen.getByLabelText('Frequency (MHz)');
+      fireEvent.focus(frequencyInput);
+      fireEvent.change(frequencyInput, { target: { value: '25' } });
+      fireEvent.blur(frequencyInput);
+      expect(screen.getByText(/40 m @ 25 MHz/)).toBeInTheDocument();
+    });
+
+    it('toggling off clamps an out-of-range manual SFI back into the realistic range', () => {
+      renderBar('/?dk=manual&sfi=400&kp=2');
+      fireEvent.click(screen.getByText('Edit conditions'));
+      expect(screen.getByText(/SFI 400/)).toBeInTheDocument();
+
+      fireEvent.click(screen.getByLabelText('Realism unlock')); // on
+      fireEvent.click(screen.getByLabelText('Realism unlock')); // off
+
+      expect(screen.getByText(/SFI 300/)).toBeInTheDocument();
+    });
+  });
 });
