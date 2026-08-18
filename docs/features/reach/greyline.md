@@ -74,7 +74,7 @@ projection regardless of where the ring happens to start.
 
 **World-copy anchoring (`fix/greyline-antimeridian-wrap`):** the
 point-to-point chain above keeps the ring internally continuous, but
-still has to start *somewhere* — and until this fix that start (`ring[0]`)
+still has to start _somewhere_ — and until this fix that start (`ring[0]`)
 was anchored only to its own raw longitude (near the subsolar point),
 with no relationship to the map at all. Leaflet permits unbounded
 panning — dragging repeatedly east or west keeps scrolling rather than
