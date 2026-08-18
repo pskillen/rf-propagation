@@ -3,8 +3,8 @@
 // own declarative Polyline/CircleMarker/Polygon are enough here, unlike
 // CoverageCanvasLayer: Leaflet already has first-class wrappers for a
 // line and a small circle marker, no custom L.Layer subclass needed.
-import { useMemo } from 'react';
-import { CircleMarker, Polygon, Polyline } from 'react-leaflet';
+import { useEffect, useMemo, useState } from 'react';
+import { CircleMarker, Polygon, Polyline, useMap } from 'react-leaflet';
 import {
   computeSolarTerminator,
   computeSubsolarPoint,
@@ -36,10 +36,27 @@ const POLE_CAP_LAT_DEG = 85;
  * ±180° seam even though the ring itself sweeps smoothly. Unwrapping
  * point-to-point (rather than against one fixed reference) keeps this
  * correct regardless of where the ring happens to start.
+ *
+ * `anchorLonDeg` seeds where `ring[0]` itself lands (defaulting to its own
+ * raw longitude, i.e. no shift, for callers -- e.g. this file's own tests
+ * -- that don't care). `TerminatorLayer` passes the map's current center
+ * longitude: Leaflet allows unbounded panning (dragging repeatedly east or
+ * west keeps scrolling rather than snapping back to ±180), so a shape only
+ * stays on screen if its raw longitudes are within ~180° of the map's
+ * current, possibly many-times-wrapped, center longitude. Anchoring here
+ * keeps the *whole chain* near the map's actual view; see this component's
+ * `useMapCenterLonDeg` for the counterpart that keeps that anchor current
+ * as the map pans (this mirrors -- in spirit, not code, since this is a
+ * declarative react-leaflet layer rather than `CoverageCanvasLayer`'s
+ * imperative `L.Layer` -- how that layer re-anchors and redraws on every
+ * `move`).
  */
-export function unwrapRingLongitudes(ring: GeoPoint[]): GeoPoint[] {
+export function unwrapRingLongitudes(ring: GeoPoint[], anchorLonDeg?: number): GeoPoint[] {
   if (ring.length === 0) return [];
-  const unwrapped: GeoPoint[] = [ring[0]];
+  const anchor = anchorLonDeg ?? ring[0].lonDeg;
+  const unwrapped: GeoPoint[] = [
+    { latDeg: ring[0].latDeg, lonDeg: unwrapLongitudeRelativeTo(ring[0].lonDeg, anchor) },
+  ];
   for (let i = 1; i < ring.length; i++) {
     const previous = unwrapped[i - 1];
     unwrapped.push({
@@ -48,6 +65,28 @@ export function unwrapRingLongitudes(ring: GeoPoint[]): GeoPoint[] {
     });
   }
   return unwrapped;
+}
+
+/**
+ * Tracks the map's current center longitude, re-rendering on every
+ * Leaflet `move` (fires continuously mid-drag, not just on release) --
+ * the map-awareness `TerminatorLayer` was missing entirely before this
+ * fix (no `useMap()`, no move listener), which let its ring stay anchored
+ * forever to wherever `ring[0]` happened to land when first computed, with
+ * no relationship to what the map was actually showing. See
+ * `unwrapRingLongitudes`'s own doc comment for why that anchor matters.
+ */
+function useMapCenterLonDeg(): number {
+  const map = useMap();
+  const [centerLonDeg, setCenterLonDeg] = useState(() => map.getCenter().lng);
+  useEffect(() => {
+    const update = () => setCenterLonDeg(map.getCenter().lng);
+    map.on('move zoom', update);
+    return () => {
+      map.off('move zoom', update);
+    };
+  }, [map]);
+  return centerLonDeg;
 }
 
 /**
@@ -91,16 +130,26 @@ export interface TerminatorLayerProps {
 }
 
 export default function TerminatorLayer({ atMs, visible }: TerminatorLayerProps) {
-  // Memoized on `atMs` alone (a hook, so it must run every render,
-  // regardless of `visible` -- the early return below stays AFTER these).
-  // `ReachPage.tsx` now passes a throttled `atMs` (at most once every 60s
-  // while Conditions' live clock ticks every ~1s) -- without this `useMemo`
-  // the throttling upstream wouldn't help, since this component would
-  // still redo the ~180-point ring/subsolar-point geometry on every render
-  // its parent triggers for unrelated reasons (e.g. the coverage grid
-  // updating), not just on every `atMs` change.
+  // Hooks, so they must run every render, regardless of `visible` -- the
+  // early return below stays AFTER these.
+  //
+  // `mapCenterLonDeg` re-renders on every map `move`/`zoom` -- cheap (just
+  // re-running the point-to-point unwrap arithmetic below on the already-
+  // computed ring), unlike `ring` itself, which stays memoized on `atMs`
+  // alone. `ReachPage.tsx` passes a throttled `atMs` (at most once every
+  // 60s while Conditions' live clock ticks every ~1s) -- without this
+  // `useMemo` the throttling upstream wouldn't help, since this component
+  // would still redo the ~180-point ring/subsolar-point geometry on every
+  // render its parent triggers for unrelated reasons (e.g. the coverage
+  // grid updating), not just on every `atMs` change. Panning the map is a
+  // separate, legitimate reason to redo the (cheap) unwrap step -- see
+  // `useMapCenterLonDeg`'s own doc comment for why it's needed at all.
+  const mapCenterLonDeg = useMapCenterLonDeg();
   const ring = useMemo(() => computeSolarTerminator(atMs), [atMs]);
-  const unwrappedRing = useMemo(() => unwrapRingLongitudes(ring), [ring]);
+  const unwrappedRing = useMemo(
+    () => unwrapRingLongitudes(ring, mapCenterLonDeg),
+    [ring, mapCenterLonDeg],
+  );
   const linePositions = useMemo<[number, number][]>(
     () => unwrappedRing.map((point) => [point.latDeg, point.lonDeg]),
     [unwrappedRing],
@@ -110,6 +159,14 @@ export default function TerminatorLayer({ atMs, visible }: TerminatorLayerProps)
     [unwrappedRing, atMs],
   );
   const sun = useMemo(() => computeSubsolarPoint(atMs), [atMs]);
+  // The subsolar point is computed independently of the ring (its own
+  // `atan2` normalisation), so it needs the same map-relative re-anchor --
+  // otherwise the sun marker itself would go missing after enough panning,
+  // same as the ring did before this fix.
+  const sunPosition = useMemo<[number, number]>(
+    () => [sun.latDeg, unwrapLongitudeRelativeTo(sun.lonDeg, mapCenterLonDeg)],
+    [sun, mapCenterLonDeg],
+  );
 
   if (!visible) return null;
 
@@ -132,7 +189,7 @@ export default function TerminatorLayer({ atMs, visible }: TerminatorLayerProps)
         interactive={false}
       />
       <CircleMarker
-        center={[sun.latDeg, sun.lonDeg]}
+        center={sunPosition}
         radius={7}
         pathOptions={{
           color: '#fff',

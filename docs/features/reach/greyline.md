@@ -72,6 +72,31 @@ using the existing `unwrapLongitudeRelativeTo` — this keeps the
 polyline continuous in Leaflet's linear-beyond-±180° longitude
 projection regardless of where the ring happens to start.
 
+**World-copy anchoring (`fix/greyline-antimeridian-wrap`):** the
+point-to-point chain above keeps the ring internally continuous, but
+still has to start *somewhere* — and until this fix that start (`ring[0]`)
+was anchored only to its own raw longitude (near the subsolar point),
+with no relationship to the map at all. Leaflet permits unbounded
+panning — dragging repeatedly east or west keeps scrolling rather than
+snapping back to ±180 — so a shape's raw longitudes only stay on screen
+while they're within ~180° of the map's current, possibly many-times-
+wrapped, center longitude. Confirmed live: after dragging the 2D map east
+several times, the terminator line, night polygon, and sun marker all
+went fully off-screen (their SVG `<path d>` collapsed to the degenerate
+`"M0 0"`, matching the reported "gets half way across Brazil then stops,
+skewed past the antimeridian" symptom at a smaller pan distance).
+`unwrapRingLongitudes` now takes an optional `anchorLonDeg`, and
+`TerminatorLayer` supplies the map's own current center longitude via a
+`useMap()` + `move`/`zoom` listener (`useMapCenterLonDeg`) — re-anchoring
+`ring[0]` (and, independently, the subsolar point used for the sun
+marker) to the map's center on every pan/zoom, the same "recompute
+relative to something the current view actually shows, on every move"
+shape `CoverageCanvasLayer`'s own antimeridian fix already uses, adapted
+to a declarative react-leaflet layer instead of an imperative `L.Layer`.
+The expensive part (`computeSolarTerminator`'s ~180-point geometry) stays
+memoized on `atMs` alone, per the recompute-cadence fix above — only the
+cheap unwrap/re-anchor step re-runs on pan.
+
 ### Night-shading polygon
 
 The terminator (a great circle) is single-valued in longitude, so the
