@@ -3,6 +3,7 @@
 // own declarative Polyline/CircleMarker/Polygon are enough here, unlike
 // CoverageCanvasLayer: Leaflet already has first-class wrappers for a
 // line and a small circle marker, no custom L.Layer subclass needed.
+import { useMemo } from 'react';
 import { CircleMarker, Polygon, Polyline } from 'react-leaflet';
 import {
   computeSolarTerminator,
@@ -90,16 +91,27 @@ export interface TerminatorLayerProps {
 }
 
 export default function TerminatorLayer({ atMs, visible }: TerminatorLayerProps) {
-  if (!visible) return null;
+  // Memoized on `atMs` alone (a hook, so it must run every render,
+  // regardless of `visible` -- the early return below stays AFTER these).
+  // `ReachPage.tsx` now passes a throttled `atMs` (at most once every 60s
+  // while Conditions' live clock ticks every ~1s) -- without this `useMemo`
+  // the throttling upstream wouldn't help, since this component would
+  // still redo the ~180-point ring/subsolar-point geometry on every render
+  // its parent triggers for unrelated reasons (e.g. the coverage grid
+  // updating), not just on every `atMs` change.
+  const ring = useMemo(() => computeSolarTerminator(atMs), [atMs]);
+  const unwrappedRing = useMemo(() => unwrapRingLongitudes(ring), [ring]);
+  const linePositions = useMemo<[number, number][]>(
+    () => unwrappedRing.map((point) => [point.latDeg, point.lonDeg]),
+    [unwrappedRing],
+  );
+  const nightPolygonPositions = useMemo(
+    () => buildNightPolygonPositions(unwrappedRing, atMs),
+    [unwrappedRing, atMs],
+  );
+  const sun = useMemo(() => computeSubsolarPoint(atMs), [atMs]);
 
-  const ring = computeSolarTerminator(atMs);
-  const unwrappedRing = unwrapRingLongitudes(ring);
-  const linePositions: [number, number][] = unwrappedRing.map((point) => [
-    point.latDeg,
-    point.lonDeg,
-  ]);
-  const nightPolygonPositions = buildNightPolygonPositions(unwrappedRing, atMs);
-  const sun = computeSubsolarPoint(atMs);
+  if (!visible) return null;
 
   return (
     <>

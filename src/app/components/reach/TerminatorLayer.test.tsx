@@ -1,8 +1,9 @@
 import { render, waitFor } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { MapContainer } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import type { GeoPoint } from '@core/domain/propagation/greatCircle';
+import * as solarTerminatorModule from '@core/domain/propagation/solarTerminator';
 import {
   computeSolarTerminator,
   computeSubsolarPoint,
@@ -142,5 +143,39 @@ describe('TerminatorLayer (rendered inside a real Leaflet map)', () => {
       );
       expect(pathsAtNoon).not.toEqual(pathsAtMorning);
     });
+  });
+
+  it('does not recompute the terminator geometry on a re-render with the same atMs (memoized)', async () => {
+    const computeSolarTerminatorSpy = vi.spyOn(solarTerminatorModule, 'computeSolarTerminator');
+    const computeSubsolarPointSpy = vi.spyOn(solarTerminatorModule, 'computeSubsolarPoint');
+
+    const { container, rerender } = render(
+      <MapContainer center={[0, 0]} zoom={2} className="map">
+        <TerminatorLayer atMs={JUNE_SOLSTICE_NOON_UTC} visible />
+      </MapContainer>,
+    );
+    await waitFor(() => {
+      expect(container.querySelectorAll('.leaflet-overlay-pane path').length).toBeGreaterThan(0);
+    });
+    const callsAfterFirstRender = computeSolarTerminatorSpy.mock.calls.length;
+    expect(callsAfterFirstRender).toBeGreaterThan(0);
+
+    // `ReachPage.tsx` re-renders on every parent update (e.g. a coverage
+    // grid result landing), independent of whether the throttled `atMs` it
+    // passes down actually changed -- the memoization inside TerminatorLayer
+    // itself, not just the throttling upstream, is what stops the ~180-point
+    // ring/subsolar-point geometry from being recomputed on every one of
+    // those unrelated re-renders.
+    rerender(
+      <MapContainer center={[0, 0]} zoom={2} className="map">
+        <TerminatorLayer atMs={JUNE_SOLSTICE_NOON_UTC} visible />
+      </MapContainer>,
+    );
+
+    expect(computeSolarTerminatorSpy.mock.calls.length).toBe(callsAfterFirstRender);
+    expect(computeSubsolarPointSpy.mock.calls.length).toBe(callsAfterFirstRender);
+
+    computeSolarTerminatorSpy.mockRestore();
+    computeSubsolarPointSpy.mockRestore();
   });
 });

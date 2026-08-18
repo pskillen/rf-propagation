@@ -14,6 +14,7 @@ import ReachSummaryStrip from '../../components/reach/ReachSummaryStrip.tsx';
 import TargetPanel from '../../components/reach/TargetPanel.tsx';
 import { useBestBandNow } from '../../components/reach/useBestBandNow.ts';
 import { useReachCoverage } from '../../components/reach/useReachCoverage.ts';
+import { useThrottledConditions } from '../../hooks/useThrottledConditions.ts';
 import { useViewerState } from '../../state/viewerState.tsx';
 import classes from './ReachPage.module.css';
 
@@ -37,6 +38,15 @@ export default function ReachPage() {
   // Best-band-now: its own per-band sweep, only re-run on Station/
   // Conditions change (Slice 4's own note -- not part of the live-drag path).
   const bandRankings = useBestBandNow(station, conditions);
+
+  // The greyline's own recompute cadence -- `TerminatorLayer` redoes a
+  // 180-point geometric ring on every `atMs` it's given, so feeding it the
+  // raw, 1s-ticking `conditions.atMs` re-ran that on every live clock tick
+  // too (same mechanical cause as `useReachCoverage`/`useBestBandNow`'s
+  // fix above, just cheaper per-call). `TerminatorLayer` itself memoizes
+  // on this value, so a throttled prop is what actually stops the redundant
+  // recompute, not just how often it's passed down.
+  const throttledConditions = useThrottledConditions(conditions);
 
   // "Fire a new request on every drag-move event, let the client's own
   // supersede logic handle the rest" (phase 4's own instruction) --
@@ -115,7 +125,7 @@ export default function ReachPage() {
           coverageStation={coverageStation}
           target={target}
           onMapClick={handleMapClick}
-          atMs={conditions.atMs}
+          atMs={throttledConditions.atMs}
           showTerminator={showTerminator}
         />
       }
