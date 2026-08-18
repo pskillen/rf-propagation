@@ -42,6 +42,7 @@ import {
   type TerminatorPath,
 } from './buildGlobeData.ts';
 import { TERMINATOR_DASH_GAP, TERMINATOR_DASH_LENGTH } from './globePathDash.ts';
+import { applyViewportOffset, computeViewportOffsetPx } from './viewportOffset.ts';
 import classes from './HfPropagationGlobe.module.css';
 
 export {
@@ -242,6 +243,18 @@ export default function HfPropagationGlobe({
     resizeObserver.observe(node);
     return () => resizeObserver.disconnect();
   }, []);
+
+  // Slice 4 (F6.4) -- viewport offset, recomputed inside the SAME resize
+  // signal that already drives `size` above (not a second ResizeObserver),
+  // so it holds across window resizes and collapses to 0 below the mobile
+  // breakpoint, per this phase's own AC. See viewportOffset.ts for the
+  // shift-direction judgment call.
+  useEffect(() => {
+    const camera = globeRef.current?.camera() as THREE.PerspectiveCamera | undefined;
+    if (!camera) return;
+    const shiftPx = computeViewportOffsetPx(size.width);
+    applyViewportOffset(camera, size.width, size.height, shiftPx);
+  }, [size.width, size.height]);
 
   return (
     <div className={classes.wrapper} ref={containerRef}>
