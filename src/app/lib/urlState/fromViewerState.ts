@@ -17,6 +17,7 @@ import type { Conditions } from '@core/domain/conditions/types';
 import type { ViewerState } from '../../state/viewerState.tsx';
 import { DEFAULT_GLOBE_TOGGLES } from '../../state/globeToggles.ts';
 import { DEFAULT_PLAYBACK } from '../../state/playback.ts';
+import { DEFAULT_RAY_CONTROLS } from '../../state/rayControls.ts';
 import { DEFAULT_STATION } from '@core/domain/station/defaults';
 import type { ConditionsUrlState, StationUrlState, ViewerUrlState } from './types.ts';
 
@@ -94,5 +95,28 @@ export function viewerStateToUrlState(state: ViewerState): ViewerUrlState {
           ? state.playback.unrealismUnlocked
           : undefined,
     },
+    explore: (() => {
+      const rc = state.display.rayControls;
+      return {
+        radials: rc.radials !== DEFAULT_RAY_CONTROLS.radials ? rc.radials : undefined,
+        elevations: rc.elevations !== DEFAULT_RAY_CONTROLS.elevations ? rc.elevations : undefined,
+        esMin:
+          rc.elevationSpreadDeg[0] !== DEFAULT_RAY_CONTROLS.elevationSpreadDeg[0]
+            ? rc.elevationSpreadDeg[0]
+            : undefined,
+        esMax:
+          rc.elevationSpreadDeg[1] !== DEFAULT_RAY_CONTROLS.elevationSpreadDeg[1]
+            ? rc.elevationSpreadDeg[1]
+            : undefined,
+        focusBearingDeg:
+          rc.focusBearingDeg !== DEFAULT_RAY_CONTROLS.focusBearingDeg
+            ? rc.focusBearingDeg
+            : undefined,
+        outcomeFilter:
+          rc.outcomeFilter !== DEFAULT_RAY_CONTROLS.outcomeFilter ? rc.outcomeFilter : undefined,
+        colourBy: rc.colourBy !== DEFAULT_RAY_CONTROLS.colourBy ? rc.colourBy : undefined,
+        soloLayerId: rc.soloLayerId,
+      };
+    })(),
   };
 }

@@ -79,6 +79,26 @@ export interface GlobeUrlState {
 }
 
 /**
+ * The URL's lossy view of `ViewerState.display.rayControls`
+ * (`@app/state/rayControls`, phase 11's Slices 2-3, F8.2/F8.3). Every field
+ * an optional override, same "absent means the app's own current/default
+ * value" contract as `GlobeUrlState`. `esMin`/`esMax` split
+ * `elevationSpreadDeg`'s tuple into two params since a single query key
+ * can't hold a two-element array cleanly with this codec's flat
+ * key/value convention.
+ */
+export interface ExploreUrlState {
+  radials?: number;
+  elevations?: number;
+  esMin?: number;
+  esMax?: number;
+  focusBearingDeg?: number;
+  outcomeFilter?: 'all' | 'escaped' | 'returned' | 'absorbed';
+  colourBy?: 'mode' | 'layer' | 'signalStrength';
+  soloLayerId?: 'D' | 'E' | 'F1' | 'F2';
+}
+
+/**
  * The URL's lossy view of `ViewerState.playback` (`@app/state/playback`,
  * phase 10's Slice 4, F7.4). Only `unrealismUnlocked` round-trips —
  * `playing`/`speedMultiplier` are deliberately never persisted anywhere
@@ -109,6 +129,7 @@ export interface ViewerUrlState {
   target?: TargetUrlState;
   globe: GlobeUrlState;
   playback: PlaybackUrlState;
+  explore: ExploreUrlState;
 }
 
 export const URL_STATE_VERSION = 1;
@@ -128,4 +149,5 @@ export const DEFAULT_VIEWER_URL_STATE: ViewerUrlState = {
   bandId: DEFAULT_BAND_ID,
   globe: {},
   playback: {},
+  explore: {},
 };

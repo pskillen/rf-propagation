@@ -14,6 +14,7 @@ import TransportControl from './components/TransportControl/TransportControl.tsx
 import { ViewerStateProvider, useViewerState } from './state/viewerState.tsx';
 import { DEFAULT_GLOBE_TOGGLES } from './state/globeToggles.ts';
 import { DEFAULT_PLAYBACK } from './state/playback.ts';
+import { DEFAULT_RAY_CONTROLS } from './state/rayControls.ts';
 import { useConditions } from './hooks/useConditions.ts';
 import { conditionsUrlStateToInitialTime } from './lib/urlState/fields/conditions.ts';
 import { useViewerUrlState } from './hooks/useViewerUrlState.ts';
@@ -64,7 +65,10 @@ function Shell() {
       bandId: DEFAULT_BAND_ID,
       frequencyMhz: bandMidpointMhz(DEFAULT_BAND_ID),
       target: null,
-      display: { globeToggles: { ...DEFAULT_GLOBE_TOGGLES } },
+      display: {
+        globeToggles: { ...DEFAULT_GLOBE_TOGGLES },
+        rayControls: { ...DEFAULT_RAY_CONTROLS },
+      },
       playback: { ...DEFAULT_PLAYBACK },
     });
     goLive();

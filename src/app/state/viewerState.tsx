@@ -10,6 +10,7 @@ import { decodeViewerUrlState } from '../lib/urlState/codec.ts';
 import type { StationUrlState, SurfaceId } from '../lib/urlState/types.ts';
 import { DEFAULT_GLOBE_TOGGLES, type GlobeToggles } from './globeToggles.ts';
 import { DEFAULT_PLAYBACK, type PlaybackState } from './playback.ts';
+import { DEFAULT_RAY_CONTROLS, type RayControlsState } from './rayControls.ts';
 
 /**
  * `ViewerState.target`'s source — how the operator set the current target.
@@ -74,9 +75,16 @@ export interface Target {
  * still ConditionsBar-local, still published one-way into this context,
  * since nothing outside ConditionsBar writes those.
  */
-/** Display-only surface settings — phase 9 (Globe) adds `globeToggles`; later phases may add sibling fields here (never edit `globeToggles`'s own shape from outside this phase). */
+/**
+ * Display-only surface settings — phase 9 (Globe) adds `globeToggles`;
+ * phase 11 (Explore) adds `rayControls` (F8.2/F8.3's ray-count/filter/
+ * colour/solo state — see `rayControls.ts`'s own doc comment for why it's
+ * grouped here rather than flat on this interface). Never edit a sibling
+ * field's own shape from outside the phase that owns it.
+ */
 export interface DisplayState {
   globeToggles: GlobeToggles;
+  rayControls: RayControlsState;
 }
 
 export interface ViewerState {
@@ -154,6 +162,22 @@ function initialViewerState(): ViewerState {
           decoded.globe.terminatorEnabled ?? DEFAULT_GLOBE_TOGGLES.terminatorEnabled,
         cutawayEnabled: decoded.globe.cutawayEnabled ?? DEFAULT_GLOBE_TOGGLES.cutawayEnabled,
         mapMode: decoded.globe.mapMode ?? DEFAULT_GLOBE_TOGGLES.mapMode,
+      },
+      // Same "each field its own `??` fallback" contract as globeToggles
+      // above (phase 11, F8.2/F8.3) — `decoded.explore` always has every
+      // key present (possibly `undefined`), so a blind spread would still
+      // clobber `DEFAULT_RAY_CONTROLS`' real values with those `undefined`s.
+      rayControls: {
+        radials: decoded.explore.radials ?? DEFAULT_RAY_CONTROLS.radials,
+        elevations: decoded.explore.elevations ?? DEFAULT_RAY_CONTROLS.elevations,
+        elevationSpreadDeg: [
+          decoded.explore.esMin ?? DEFAULT_RAY_CONTROLS.elevationSpreadDeg[0],
+          decoded.explore.esMax ?? DEFAULT_RAY_CONTROLS.elevationSpreadDeg[1],
+        ],
+        focusBearingDeg: decoded.explore.focusBearingDeg ?? DEFAULT_RAY_CONTROLS.focusBearingDeg,
+        outcomeFilter: decoded.explore.outcomeFilter ?? DEFAULT_RAY_CONTROLS.outcomeFilter,
+        colourBy: decoded.explore.colourBy ?? DEFAULT_RAY_CONTROLS.colourBy,
+        soloLayerId: decoded.explore.soloLayerId ?? DEFAULT_RAY_CONTROLS.soloLayerId,
       },
     },
     // `playing` is never persisted (see this phase's plan file --

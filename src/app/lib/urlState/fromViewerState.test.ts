@@ -3,6 +3,7 @@ import { DEFAULT_STATION } from '@core/domain/station/defaults';
 import { DEFAULT_CONDITIONS } from '@core/domain/conditions/defaults';
 import { DEFAULT_GLOBE_TOGGLES } from '../../state/globeToggles.ts';
 import { DEFAULT_PLAYBACK } from '../../state/playback.ts';
+import { DEFAULT_RAY_CONTROLS } from '../../state/rayControls.ts';
 import type { ViewerState } from '../../state/viewerState.tsx';
 import { encodeViewerUrlState } from './codec.ts';
 import { viewerStateToUrlState } from './fromViewerState.ts';
@@ -15,7 +16,7 @@ function baseViewerState(): ViewerState {
     bandId: '40m',
     frequencyMhz: 7.1,
     target: null,
-    display: { globeToggles: DEFAULT_GLOBE_TOGGLES },
+    display: { globeToggles: DEFAULT_GLOBE_TOGGLES, rayControls: DEFAULT_RAY_CONTROLS },
     playback: DEFAULT_PLAYBACK,
   };
 }
@@ -93,6 +94,7 @@ describe('viewerStateToUrlState', () => {
     state.target = { lat: 40, lon: 10, source: 'map-click' };
     state.display = {
       globeToggles: { ...DEFAULT_GLOBE_TOGGLES, mapMode: 'globe', exaggerationFactor: 6 },
+      rayControls: DEFAULT_RAY_CONTROLS,
     };
     const params = encodeViewerUrlState(viewerStateToUrlState(state));
     expect(params.get('tlat')).toBe('40');
