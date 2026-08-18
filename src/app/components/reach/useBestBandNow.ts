@@ -39,11 +39,23 @@ export function useBestBandNow(
   clientFactory: () => CoverageGridClient = () => new CoverageGridClient(),
 ): BandRanking[] {
   const clientRef = useRef<CoverageGridClient | null>(null);
-  if (clientRef.current == null) clientRef.current = clientFactory();
 
+  // Created and destroyed inside the SAME effect, not created eagerly
+  // during render -- see useReachCoverage.ts's identical fix for the full
+  // explanation: a client created during render and only torn down in an
+  // effect cleanup is permanently killed by React 19 StrictMode's
+  // dev-only double-invoke of effects (mount -> cleanup -> mount again),
+  // since nothing re-runs the render-time creation check afterward. Caught
+  // via live browser verification (the band-ranking sweep hung on
+  // "Ranking bands…" forever), not the test suite.
   useEffect(() => {
-    const client = clientRef.current;
-    return () => client?.destroy();
+    const client = clientFactory();
+    clientRef.current = client;
+    return () => {
+      client.destroy();
+      clientRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const [rankings, setRankings] = useState<BandRanking[]>([]);
@@ -54,13 +66,13 @@ export function useBestBandNow(
     async function run() {
       const resultsByBand = new Map<string, CoverageGridResult>();
       for (const band of UK_AMATEUR_BANDS) {
-        if (cancelled) return;
+        if (cancelled || clientRef.current == null) return;
         const input = buildCoverageGridInput(station, conditions, bandMidpointMhz(band.id));
         try {
           // Sequential, awaited -- this client tracks one in-flight
           // request at a time, so firing all bands' requests without
           // awaiting would just cancel every one but the last.
-          const result = await clientRef.current!.compute(input);
+          const result = await clientRef.current.compute(input);
           resultsByBand.set(band.id, result);
         } catch {
           // Cancelled (unmount destroyed the client) or errored -- skip

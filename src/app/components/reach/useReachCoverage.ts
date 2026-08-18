@@ -35,11 +35,34 @@ export function useReachCoverage(
   clientFactory: () => CoverageGridClient = () => new CoverageGridClient(),
 ): UseReachCoverageResult {
   const clientRef = useRef<CoverageGridClient | null>(null);
-  if (clientRef.current == null) clientRef.current = clientFactory();
 
+  // Created and destroyed inside the SAME effect (not created eagerly
+  // during render, only destroyed in cleanup) -- this matters under
+  // React 19 StrictMode's dev-only double-invoke of effects (mount ->
+  // cleanup -> mount again, with no re-render in between). A client
+  // created during render and only torn down in an effect cleanup gets
+  // destroyed by the phantom cleanup and never recreated, since nothing
+  // re-runs the render-time creation check -- the component is left
+  // holding a dead Worker forever (recompute() posts to a terminated
+  // Worker, which silently drops the message; the returned promise never
+  // resolves or rejects, and the surface hangs on "Computing coverage…"
+  // indefinitely). Caught via live browser verification, not the test
+  // suite -- @testing-library/react's renderHook doesn't wrap in
+  // StrictMode, so the double-invoke bug didn't reproduce there. Creating
+  // the client INSIDE the effect means StrictMode's phantom cycle ends
+  // with a fresh, live client (create A -> destroy A -> create B), not a
+  // permanently-dead one.
   useEffect(() => {
-    const client = clientRef.current;
-    return () => client?.destroy();
+    const client = clientFactory();
+    clientRef.current = client;
+    return () => {
+      client.destroy();
+      clientRef.current = null;
+    };
+    // clientFactory is a test seam only; production callers never pass a
+    // changing one, and re-running this effect on every identity change
+    // would tear down and rebuild the Worker needlessly.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const [state, setState] = useState<{
@@ -49,14 +72,20 @@ export function useReachCoverage(
 
   const recompute = useCallback(
     (qthOverride?: { lat: number; lon: number }) => {
+      // Guards the (unlikely in practice) race where recompute() fires
+      // before the creation effect above has run -- rather than a
+      // null-assertion crash, this call is simply skipped; the auto-
+      // recompute effect below runs after client creation and will
+      // still produce a result.
+      if (clientRef.current == null) return;
       const input = buildCoverageGridInput(
         station,
         conditions,
         frequencyMhz,
         qthOverride ?? station.qth,
       );
-      clientRef
-        .current!.compute(input, (coarse) => setState({ result: coarse, pass: 'coarse' }))
+      clientRef.current
+        .compute(input, (coarse) => setState({ result: coarse, pass: 'coarse' }))
         .then((fine) => setState({ result: fine, pass: 'fine' }))
         .catch(() => {
           // Superseded/cancelled by a newer recompute() call, or the client
