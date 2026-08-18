@@ -32,8 +32,10 @@ Stack: React + Vite + TypeScript, deployed to Cloudflare Pages, same four-enviro
 | `AGENTS.md` | This file — agent workflow index |
 | `.skills/` | Agent skills — git workflow, plans, docs, progress (ecosystem-agnostic; not `.cursor/` or `.claude/`) |
 | `tmp/` | Gitignored scratch space — planning docs (`tmp/mvp-plan/`), and any per-feature planning under `tmp/features/<name>/` per [multi-phase-plan](.skills/multi-phase-plan/SKILL.md) |
-| `docs/features/` | Shipped feature documentation, one folder per topic — see [feature-docs](.skills/feature-docs/SKILL.md); starts with `docs/features/engine/` (propagation engine geometry/layers/MUF) |
-| `src/core/domain/propagation/` | The propagation engine's pure functions (geometry, layer model, reflection/MUF selection, validation harness) — no React, no DOM |
+| `docs/features/` | Shipped feature documentation, one folder per topic — see [feature-docs](.skills/feature-docs/SKILL.md); starts with `docs/features/engine/` (propagation engine geometry/layers/MUF/link budget/multi-hop/coverage grid) and `docs/features/app-shell/` (component kit, app chrome, URL state codec) |
+| `src/core/domain/propagation/` | The propagation engine's pure functions (geometry, layer model, reflection/MUF selection, link budget, multi-hop solving, coverage grid, illustration rays, validation harness) — no React, no DOM |
+| `src/integrations/propagation/` | The coverage-grid Worker: protocol, worker entry point, and typed client — no React |
+| `src/app/` | Routes, the copied `v2` component kit and theme, app chrome/layout, and the URL state codec — see `docs/features/app-shell/` |
 
 Remaining application directories (`docs/reference/`, etc.) will be added as later delivery phases need them — see the bootstrap checklist in the product doc set.
 

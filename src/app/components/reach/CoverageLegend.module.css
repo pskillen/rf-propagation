@@ -1,0 +1,65 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--dsv2-border, rgba(255, 255, 255, 0.08));
+  border-radius: 8px;
+}
+
+.title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--dsv2-text-primary);
+}
+
+.reliabilityRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.reliabilityGradient {
+  display: inline-block;
+  width: 64px;
+  height: 10px;
+  border-radius: 4px;
+  background: linear-gradient(to right, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.85));
+  flex-shrink: 0;
+}
+
+.reliabilityLabel {
+  font-size: 12px;
+  color: var(--dsv2-text-secondary);
+}
+
+.regionList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.regionRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--dsv2-text-secondary);
+}
+
+.swatch {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.swatch[data-empty] {
+  background: transparent;
+  border: 1px dashed var(--dsv2-text-tertiary, rgba(255, 255, 255, 0.35));
+}
