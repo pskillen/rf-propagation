@@ -14,7 +14,24 @@ beforeEach(() => {
 });
 
 describe('AntennaList', () => {
-  it('switches the active antenna in one click', () => {
+  it("shows the active antenna's form pre-filled immediately, with no separate Edit click", () => {
+    const onStationChange = vi.fn();
+    render(
+      <DesignSystemV2Provider>
+        <AntennaList antennas={ANTENNAS} activeAntennaId="a1" onStationChange={onStationChange} />
+      </DesignSystemV2Provider>,
+    );
+
+    // No "Edit" affordance exists any more -- the form for the active
+    // antenna (a1, Dipole) is visible from first paint.
+    expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument();
+    expect(screen.getByPlaceholderText('e.g. 20m yagi')).toHaveValue('Dipole');
+    expect(screen.getByLabelText('Height above ground (m)')).toHaveValue(7);
+    expect(screen.getByLabelText('Gain (dBi)')).toHaveValue(2.1);
+    expect(screen.getByRole('button', { name: 'Save changes' })).toBeInTheDocument();
+  });
+
+  it('switches the active antenna in one click, and its form appears immediately', () => {
     const onStationChange = vi.fn();
     render(
       <DesignSystemV2Provider>
@@ -27,6 +44,10 @@ describe('AntennaList', () => {
     expect(onStationChange).toHaveBeenCalledTimes(1);
     const station = onStationChange.mock.calls[0][0];
     expect(station.activeAntennaId).toBe('a2');
+
+    // The form now shows a2's own saved values, not a1's.
+    expect(screen.getByPlaceholderText('e.g. 20m yagi')).toHaveValue('Vertical');
+    expect(screen.getByLabelText('Height above ground (m)')).toHaveValue(3);
   });
 
   it('does not call onStationChange when clicking the already-active antenna', () => {
@@ -41,7 +62,7 @@ describe('AntennaList', () => {
     expect(onStationChange).not.toHaveBeenCalled();
   });
 
-  it('adds a new antenna via the add-antenna form', () => {
+  it("adds a new antenna via the add-antenna form, which starts blank -- not the active antenna's values", () => {
     const onStationChange = vi.fn();
     render(
       <DesignSystemV2Provider>
@@ -50,6 +71,12 @@ describe('AntennaList', () => {
     );
 
     fireEvent.click(screen.getByText('+ Add antenna'));
+
+    // Blank draft, not a1's pre-filled values.
+    expect(screen.getByPlaceholderText('e.g. 20m yagi')).toHaveValue('');
+    expect(screen.getByLabelText('Height above ground (m)')).toHaveValue(10);
+    expect(screen.getByRole('button', { name: 'Add antenna' })).toBeInTheDocument();
+
     fireEvent.change(screen.getByPlaceholderText('e.g. 20m yagi'), {
       target: { value: '6m beam' },
     });
@@ -68,6 +95,10 @@ describe('AntennaList', () => {
     expect(added.name).toBe('6m beam');
     expect(added.family).toBe('directional-lobe');
     expect(added.heightM).toBe(10);
+
+    // Adding doesn't auto-activate the new antenna -- the form returns to
+    // showing the still-active a1 (judgment call, see antenna-model.md).
+    expect(screen.getByPlaceholderText('e.g. 20m yagi')).toHaveValue('Dipole');
   });
 
   it('shows an error and does not call onStationChange when the name is empty', () => {
@@ -93,7 +124,6 @@ describe('AntennaList', () => {
       </DesignSystemV2Provider>,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
     const heightInput = screen.getByLabelText('Height above ground (m)');
     expect(heightInput).toHaveValue(7);
 
@@ -151,9 +181,10 @@ describe('AntennaList', () => {
       </DesignSystemV2Provider>,
     );
 
-    // a1 (Dipole, bidirectional-transverse) has no azimuthDeg -- Edit should
-    // default it to '0', per handleStartEdit's `?? 0` fallback.
-    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    // a1 (Dipole, bidirectional-transverse) has no azimuthDeg -- the
+    // heading field defaults it to '0' (fieldsFromAntenna's `?? 0`
+    // fallback), and it's visible immediately since the form is always
+    // showing the active antenna now.
     const headingInput = screen.getByLabelText('Heading (° azimuth)');
     expect(headingInput).toHaveValue(0);
 
@@ -164,5 +195,126 @@ describe('AntennaList', () => {
     const station = onStationChange.mock.calls[0][0];
     expect(station.antennas[0].id).toBe('a1');
     expect(station.antennas[0].azimuthDeg).toBe(90);
+  });
+
+  describe('unsaved-changes indicator', () => {
+    it('appears once a field is edited, and clears after Save', () => {
+      const onStationChange = vi.fn();
+      render(
+        <DesignSystemV2Provider>
+          <AntennaList antennas={ANTENNAS} activeAntennaId="a1" onStationChange={onStationChange} />
+        </DesignSystemV2Provider>,
+      );
+
+      expect(screen.queryByText('Unsaved changes')).not.toBeInTheDocument();
+
+      fireEvent.change(screen.getByLabelText('Height above ground (m)'), {
+        target: { value: '12' },
+      });
+      expect(screen.getByText('Unsaved changes')).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+      expect(screen.queryByText('Unsaved changes')).not.toBeInTheDocument();
+    });
+
+    it('clears when the edit is discarded via the form Cancel button', () => {
+      const onStationChange = vi.fn();
+      render(
+        <DesignSystemV2Provider>
+          <AntennaList antennas={ANTENNAS} activeAntennaId="a1" onStationChange={onStationChange} />
+        </DesignSystemV2Provider>,
+      );
+
+      fireEvent.change(screen.getByLabelText('Height above ground (m)'), {
+        target: { value: '12' },
+      });
+      expect(screen.getByText('Unsaved changes')).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+      expect(screen.queryByText('Unsaved changes')).not.toBeInTheDocument();
+      expect(screen.getByLabelText('Height above ground (m)')).toHaveValue(7);
+      expect(onStationChange).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('switching the active antenna while the form is dirty', () => {
+    it('prompts a confirm instead of silently discarding the edit', () => {
+      const onStationChange = vi.fn();
+      render(
+        <DesignSystemV2Provider>
+          <AntennaList antennas={ANTENNAS} activeAntennaId="a1" onStationChange={onStationChange} />
+        </DesignSystemV2Provider>,
+      );
+
+      fireEvent.change(screen.getByLabelText('Height above ground (m)'), {
+        target: { value: '12' },
+      });
+
+      fireEvent.click(screen.getByText('Vertical'));
+
+      // Station's activeAntennaId hasn't moved yet -- the switch is pending.
+      expect(onStationChange).not.toHaveBeenCalled();
+      expect(screen.getByText(/discard unsaved changes/i)).toBeInTheDocument();
+      // The dirty a1 form is still showing underneath the confirm.
+      expect(screen.getByLabelText('Height above ground (m)')).toHaveValue(12);
+    });
+
+    it('keeps the in-progress edit when the confirm is dismissed', () => {
+      const onStationChange = vi.fn();
+      render(
+        <DesignSystemV2Provider>
+          <AntennaList antennas={ANTENNAS} activeAntennaId="a1" onStationChange={onStationChange} />
+        </DesignSystemV2Provider>,
+      );
+
+      fireEvent.change(screen.getByLabelText('Height above ground (m)'), {
+        target: { value: '12' },
+      });
+      fireEvent.click(screen.getByText('Vertical'));
+      fireEvent.click(screen.getByRole('button', { name: 'Keep editing' }));
+
+      expect(onStationChange).not.toHaveBeenCalled();
+      expect(screen.queryByText(/discard unsaved changes/i)).not.toBeInTheDocument();
+      expect(screen.getByLabelText('Height above ground (m)')).toHaveValue(12);
+      expect(screen.getByPlaceholderText('e.g. 20m yagi')).toHaveValue('Dipole');
+    });
+
+    it('discards the edit and switches once confirmed', () => {
+      const onStationChange = vi.fn();
+      render(
+        <DesignSystemV2Provider>
+          <AntennaList antennas={ANTENNAS} activeAntennaId="a1" onStationChange={onStationChange} />
+        </DesignSystemV2Provider>,
+      );
+
+      fireEvent.change(screen.getByLabelText('Height above ground (m)'), {
+        target: { value: '12' },
+      });
+      fireEvent.click(screen.getByText('Vertical'));
+      fireEvent.click(screen.getByRole('button', { name: 'Discard changes' }));
+
+      expect(onStationChange).toHaveBeenCalledTimes(1);
+      const station = onStationChange.mock.calls[0][0];
+      expect(station.activeAntennaId).toBe('a2');
+
+      // The now-shown a2 form has its own saved values, not a1's discarded edit.
+      expect(screen.getByPlaceholderText('e.g. 20m yagi')).toHaveValue('Vertical');
+      expect(screen.getByLabelText('Height above ground (m)')).toHaveValue(3);
+    });
+
+    it('does not prompt when the form has no unsaved edits', () => {
+      const onStationChange = vi.fn();
+      render(
+        <DesignSystemV2Provider>
+          <AntennaList antennas={ANTENNAS} activeAntennaId="a1" onStationChange={onStationChange} />
+        </DesignSystemV2Provider>,
+      );
+
+      fireEvent.click(screen.getByText('Vertical'));
+
+      expect(screen.queryByText(/discard unsaved changes/i)).not.toBeInTheDocument();
+      expect(onStationChange).toHaveBeenCalledTimes(1);
+    });
   });
 });

@@ -138,15 +138,15 @@ describe('StationBar', () => {
       expect(previewPath()).toBe(initialPath);
     });
 
-    it('editing the active antenna previews its draft, not the stale pre-edit display', () => {
+    it("editing the active antenna's form previews its draft, not the stale pre-edit display", () => {
       renderBar();
       fireEvent.click(screen.getByRole('button', { name: 'Edit station' }));
       const initialPath = previewPath();
 
-      // Edit the default station's own dipole -- switching its family to a
-      // beam should visibly change the preview's shape immediately, before
+      // The default station's own dipole form is already open (no
+      // separate "Edit" click needed) -- switching its family to a beam
+      // should visibly change the preview's shape immediately, before
       // "Save changes" is ever clicked.
-      fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
       selectFamily('Directional (beam)');
 
       const draftPath = previewPath();
