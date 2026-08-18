@@ -17,6 +17,7 @@ import {
   TextInput,
   type SegmentedControlOption,
 } from '../../components/v2/index.ts';
+import TermDefinition from '../../components/TermDefinition/TermDefinition.tsx';
 import {
   RAY_ELEVATIONS_MAX,
   RAY_ELEVATIONS_MIN,
@@ -162,6 +163,12 @@ export default function RayOverlayControls({
           onChange={(colourBy) => onChange({ ...value, colourBy })}
           aria-label="Colour rays by"
         />
+        {value.colourBy === 'signalStrength' ? (
+          <p className={classes.hint}>
+            Weak-to-strong is driven by each ray&apos;s{' '}
+            <TermDefinition term="snrMargin">SNR margin</TermDefinition>.
+          </p>
+        ) : null}
       </div>
 
       <div className={classes.section}>

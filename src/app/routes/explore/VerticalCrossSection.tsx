@@ -16,8 +16,17 @@
 import type { LayerId } from '@core/domain/propagation/layers';
 import { colorForLayer } from '@core/domain/propagation/layerColor';
 import type { RayPoint } from '@core/domain/propagation/illustrationRays';
+import TermDefinition from '../../components/TermDefinition/TermDefinition.tsx';
+import type { TermKey } from '../../content/termDefinitions.ts';
 import type { CrossSectionLayerBand } from './crossSectionLayerBands.ts';
 import classes from './VerticalCrossSection.module.css';
+
+const LAYER_TERM_KEYS: Record<LayerId, TermKey> = {
+  D: 'layerD',
+  E: 'layerE',
+  F1: 'layerF1',
+  F2: 'layerF2',
+};
 
 const VIEWBOX_WIDTH = 720;
 const VIEWBOX_HEIGHT = 360;
@@ -244,9 +253,21 @@ export default function VerticalCrossSection({
         ) : null}
       </svg>
       <figcaption className={classes.caption}>
-        Takeoff angle and reflecting layer drive the hop&apos;s shape shown above — see the ray
-        legend for outcome colours.
+        <TermDefinition term="takeoffAngle">Takeoff angle</TermDefinition> and reflecting layer
+        drive the hop&apos;s shape shown above — see the ray legend for outcome colours.
       </figcaption>
+      <ul className={classes.layerLegend} aria-label="Active layers">
+        {bands.map((band) => (
+          <li key={band.layer} className={classes.layerLegendItem}>
+            <span
+              className={classes.layerLegendSwatch}
+              style={{ backgroundColor: colorForLayer(band.layer) }}
+              aria-hidden
+            />
+            <TermDefinition term={LAYER_TERM_KEYS[band.layer]}>{band.layer}</TermDefinition>
+          </li>
+        ))}
+      </ul>
     </figure>
   );
 }

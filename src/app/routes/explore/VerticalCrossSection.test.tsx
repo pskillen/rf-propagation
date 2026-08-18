@@ -23,7 +23,7 @@ describe('VerticalCrossSection', () => {
   });
 
   it('draws one line per active band, labelled with the layer id', () => {
-    const { getByText } = render(
+    const { getAllByText } = render(
       <VerticalCrossSection
         bands={BANDS}
         maxRangeKm={3000}
@@ -32,8 +32,10 @@ describe('VerticalCrossSection', () => {
         bearingDeg={90}
       />,
     );
-    expect(getByText('E')).toBeInTheDocument();
-    expect(getByText('F2')).toBeInTheDocument();
+    // Each layer id appears twice -- once as the SVG band label, once in
+    // the touch-accessible layer legend below (Slice 4, F8.4).
+    expect(getAllByText('E').length).toBeGreaterThan(0);
+    expect(getAllByText('F2').length).toBeGreaterThan(0);
   });
 
   it('renders no target marker when target is unset', () => {
