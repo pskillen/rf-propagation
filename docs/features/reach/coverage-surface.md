@@ -26,6 +26,10 @@ summary strip and target selection — see
   (`CoverageLegend`'s single source of truth for its swatches).
 - `src/app/components/reach/useReachCoverage.ts` — owns the
   `CoverageGridClient`/Worker for the live-drag surface.
+- `src/app/hooks/useThrottledConditions.ts` — throttles how often a
+  `Conditions` change counts as "meaningful" for auto-recompute purposes,
+  used by `useReachCoverage`/`useBestBandNow`/`TerminatorLayer` — see
+  Recompute cadence below.
 - `src/app/components/reach/buildCoverageGridInput.ts` — Station +
   Conditions + frequency → `CoverageGridInput`; includes the geomagnetic
   latitude approximation (a judgment call — see Deviations).
@@ -111,6 +115,44 @@ exactly for F6.3's "reads consistently with the 2D map."
   mechanism needed yet — F8.4/phase 11) reading its swatch colours
   straight from `HOP_BAND_COLORS`, so the legend can never drift from the
   actual shading formula.
+
+### Recompute cadence
+
+`useReachCoverage`'s auto-recompute effect and `useBestBandNow`'s
+per-band ranking sweep both originally depended directly on `conditions`.
+`Conditions.atMs` ticks forward every ~1s while `Conditions.liveNow` is
+true (`useConditions.ts`'s default), so every live-clock tick re-fired a
+full coarse+fine coverage-grid sweep — and, for `useBestBandNow`, one
+such sweep _per amateur band_ (9x the per-tick cost), since it runs its
+own sequential per-band sweep off the same `conditions`. Reported as "OOM
+errors / sluggish browser" plus "refreshing every few seconds is too
+often" — the same mechanical cause, not two separate bugs.
+
+Fixed (`fix/reach-coverage-recompute-cadence`) with a shared
+`useThrottledConditions` hook (`src/app/hooks/useThrottledConditions.ts`):
+it returns the same `Conditions` reference across renders until either a
+non-`atMs` field changes (`liveNow`/`driver`/`ground` — SFI/Kp/ground
+edits in the chrome bars, an explicit time scrub, "go live") or `atMs`
+itself has moved by at least 60s since the last value it returned. Both
+hooks gate their auto-recompute effect on this throttled value instead of
+the raw, 1s-ticking `conditions` — while `Conditions.liveNow` is on, both
+now recompute roughly once a minute instead of once a second, matching
+the human bug report's own "we could drop this to 1 minute and the user
+would still not see any issues."
+
+**Deliberately NOT throttled: the live-drag path.** `recompute(qthOverride)`
+(`ReachMap`'s `drag` event → `ReachPage.tsx`'s `handleStationDrag`) still
+closes over the hook's own `conditions` parameter directly and is called
+unthrottled on every drag-move event, exactly as before — phase 8's own
+"fire a new request on every drag-move event" acceptance bar. Only the
+_automatic_ effect's triggering condition changed; the manual call is
+untouched. See `useReachCoverage.ts`'s own doc comment on the auto-effect
+for the full reasoning, and `useReachCoverage.test.ts`'s
+"auto-recompute cadence" tests for the regression coverage.
+
+The greyline's terminator recompute has the same fix, for the same
+reason (cheaper per-call, same 1s-tick root cause) — see
+[greyline.md](greyline.md).
 
 ### Directionality
 

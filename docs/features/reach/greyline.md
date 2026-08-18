@@ -36,14 +36,29 @@ coverage-grid shading itself — see
 
 ### Terminator line + sun marker
 
-`computeSolarTerminator(conditions.atMs)` recomputes on every
-`conditions.atMs` change (cheap — a ~180-point ring, same order of cost
-as generating it in the first place; no debounce beyond whatever cadence
-`conditions.atMs` already updates at). Rendered as a dashed amber
-`Polyline`. `computeSubsolarPoint(conditions.atMs)` renders as a small
-filled `CircleMarker`, styled distinctly from the station/target
-markers (white ring, amber fill, vs. the station's red dot and the
-target's blue ring).
+`computeSolarTerminator(atMs)`/`computeSubsolarPoint(atMs)` render as a
+dashed amber `Polyline` and a small filled `CircleMarker` (white ring,
+amber fill, vs. the station's red dot and the target's blue ring).
+
+**Recompute cadence (`fix/reach-coverage-recompute-cadence`):**
+`ReachPage.tsx` no longer passes `conditions.atMs` straight through.
+`Conditions.atMs` ticks forward every ~1s while `Conditions.liveNow` is
+true (`useConditions.ts`'s own live clock), and this line originally read
+"cheap ... no debounce beyond whatever cadence `conditions.atMs` already
+updates at" — true in isolation, but that meant the terminator recomputed
+every one of those ticks too, forever, for as long as Reach stayed open.
+Same mechanical cause, cheaper consequence, as the coverage-grid sweep's
+own fix — see [coverage-surface.md](coverage-surface.md#recompute-cadence).
+`ReachPage.tsx` now feeds `TerminatorLayer` a **throttled** `atMs`, via
+the shared `useThrottledConditions` hook (`src/app/hooks/`): the live
+clock's 1s ticks are held back until `atMs` has moved by >= 60s, while a
+non-time `Conditions` change (SFI/Kp/ground edits, an explicit time
+scrub, "go live") still passes through immediately.
+`TerminatorLayer.tsx` itself also memoizes the ring/subsolar-point
+geometry on `atMs` (`useMemo`) — the throttled prop alone isn't enough,
+since the component still re-renders on every unrelated parent update
+(e.g. a new coverage-grid result); the `useMemo` is what actually stops
+the ~180-point ring from being regenerated on those.
 
 ### Antimeridian handling
 
