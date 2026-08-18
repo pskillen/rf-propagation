@@ -2,12 +2,38 @@ import { render, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type L from 'leaflet';
 import { DEFAULT_STATION } from '@core/domain/station/defaults';
-import ReachMap from './ReachMap.tsx';
+import type { CoverageGridResult } from '@core/domain/propagation/coverageGrid';
+import ReachMap, { type ReachMapProps } from './ReachMap.tsx';
+
+function fixtureResult(): CoverageGridResult {
+  const azimuthCount = 4;
+  const rangeBinCount = 4;
+  const cellCount = azimuthCount * rangeBinCount;
+  return {
+    azimuthCount,
+    rangeBinCount,
+    rangeBinKm: 50,
+    reliability: new Float32Array(cellCount).fill(0.8),
+    snrDb: new Float32Array(cellCount).fill(20),
+    hopCount: new Uint8Array(cellCount).fill(0),
+  };
+}
+
+const NO_COVERAGE_PROPS = {
+  coverageResult: null,
+  coveragePass: null,
+  coverageStation: null,
+} satisfies Pick<ReachMapProps, 'coverageResult' | 'coveragePass' | 'coverageStation'>;
 
 describe('ReachMap', () => {
   it('renders the station marker and OSM tiles', async () => {
     const { container } = render(
-      <ReachMap station={DEFAULT_STATION} onStationDrag={() => {}} onStationDragEnd={() => {}} />,
+      <ReachMap
+        station={DEFAULT_STATION}
+        onStationDrag={() => {}}
+        onStationDragEnd={() => {}}
+        {...NO_COVERAGE_PROPS}
+      />,
     );
 
     expect(container.querySelector('.leaflet-container')).not.toBeNull();
@@ -27,6 +53,7 @@ describe('ReachMap', () => {
         station={DEFAULT_STATION}
         onStationDrag={onStationDrag}
         onStationDragEnd={onStationDragEnd}
+        {...NO_COVERAGE_PROPS}
         markerRef={(instance) => {
           markerInstance = instance;
         }}
@@ -54,5 +81,40 @@ describe('ReachMap', () => {
 
     markerInstance!.fire('dragend');
     expect(onStationDragEnd).toHaveBeenCalledWith(NEW_LAT, NEW_LON);
+  });
+
+  it('mounts a coverage canvas layer, sized to the map, once a result is supplied (Slice 2)', async () => {
+    const { container, rerender } = render(
+      <ReachMap
+        station={DEFAULT_STATION}
+        onStationDrag={() => {}}
+        onStationDragEnd={() => {}}
+        {...NO_COVERAGE_PROPS}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(container.querySelector('canvas.reach-coverage-canvas')).not.toBeNull();
+    });
+
+    rerender(
+      <ReachMap
+        station={DEFAULT_STATION}
+        onStationDrag={() => {}}
+        onStationDragEnd={() => {}}
+        coverageResult={fixtureResult()}
+        coveragePass="fine"
+        coverageStation={{ lat: DEFAULT_STATION.qth.lat, lon: DEFAULT_STATION.qth.lon }}
+      />,
+    );
+
+    // jsdom has no real layout engine (the map container's measured size is
+    // always 0x0), so this can't assert real pixel dimensions -- it
+    // confirms the redraw pipeline actually ran for the new result (the
+    // canvas settles at full opacity) rather than being skipped.
+    await waitFor(() => {
+      const canvas = container.querySelector('canvas.reach-coverage-canvas') as HTMLCanvasElement;
+      expect(canvas.style.opacity).toBe('1');
+    });
   });
 });

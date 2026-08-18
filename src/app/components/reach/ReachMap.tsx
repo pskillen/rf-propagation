@@ -10,9 +10,11 @@
 // react on release.
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
-import { useEffect, type Ref } from 'react';
+import { useEffect, useRef, type Ref } from 'react';
 import { MapContainer, Marker, TileLayer, useMap } from 'react-leaflet';
 import type { Station } from '@core/domain/station/types';
+import type { CoverageGridResult } from '@core/domain/propagation/coverageGrid';
+import { CoverageCanvasLayer, type CoveragePass } from './CoverageCanvasLayer.ts';
 import classes from './ReachMap.module.css';
 
 const DEFAULT_ZOOM = 5;
@@ -28,6 +30,44 @@ const STATION_ICON: L.DivIcon = L.divIcon({
   iconSize: [16, 16],
   iconAnchor: [8, 8],
 });
+
+export interface CoverageLayerProps {
+  result: CoverageGridResult | null;
+  pass: CoveragePass | null;
+  station: { lat: number; lon: number } | null;
+}
+
+/**
+ * Mounts `CoverageCanvasLayer` (Slice 2, F5.2) onto the map imperatively —
+ * there's no first-class react-leaflet wrapper for an arbitrary canvas
+ * layer, so this follows the same `useMap()` + `useEffect` pattern
+ * `MapResizeFix` above already uses for non-declarative Leaflet API calls.
+ */
+function CoverageLayer({ result, pass, station }: CoverageLayerProps) {
+  const map = useMap();
+  const layerRef = useRef<CoverageCanvasLayer | null>(null);
+
+  useEffect(() => {
+    const layer = new CoverageCanvasLayer();
+    layer.addTo(map);
+    layerRef.current = layer;
+    return () => {
+      layer.remove();
+      layerRef.current = null;
+    };
+  }, [map]);
+
+  useEffect(() => {
+    if (!result || !station) return;
+    layerRef.current?.setResult(
+      result,
+      { latDeg: station.lat, lonDeg: station.lon },
+      pass ?? 'fine',
+    );
+  }, [result, pass, station]);
+
+  return null;
+}
 
 function MapResizeFix() {
   const map = useMap();
@@ -52,6 +92,11 @@ export interface ReachMapProps {
   onStationDrag: (lat: number, lon: number) => void;
   /** Fires once on `dragend` -- the only point a QTH change is persisted (Slice 1's own "debouncing applies to persistence, never to rendering" rule). */
   onStationDragEnd: (lat: number, lon: number) => void;
+  /** The current coverage grid (Slice 2, F5.2) -- `null` before the first response arrives. */
+  coverageResult: CoverageGridResult | null;
+  coveragePass: CoveragePass | null;
+  /** The station point `coverageResult` was actually computed for -- the live-drag position while dragging, `station.qth` otherwise. */
+  coverageStation: { lat: number; lon: number } | null;
   /** Test seam only -- lets tests reach the underlying Leaflet Marker instance to fire drag/dragend without simulating real pointer geometry (jsdom has no layout engine). */
   markerRef?: Ref<L.Marker>;
 }
@@ -60,6 +105,9 @@ export default function ReachMap({
   station,
   onStationDrag,
   onStationDragEnd,
+  coverageResult,
+  coveragePass,
+  coverageStation,
   markerRef,
 }: ReachMapProps) {
   return (
@@ -74,6 +122,7 @@ export default function ReachMap({
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
+        <CoverageLayer result={coverageResult} pass={coveragePass} station={coverageStation} />
         <Marker
           ref={markerRef}
           position={[station.qth.lat, station.qth.lon]}
