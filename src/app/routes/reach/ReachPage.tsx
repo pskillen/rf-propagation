@@ -7,6 +7,7 @@ import { useCallback, useState } from 'react';
 import { coordsToLocator } from '@core/domain/maidenhead';
 import { mergeStation } from '@integrations/station/persistence';
 import SurfaceLayout from '../../components/layout/SurfaceLayout.tsx';
+import CoverageLegend from '../../components/reach/CoverageLegend.tsx';
 import ReachMap from '../../components/reach/ReachMap.tsx';
 import { useReachCoverage } from '../../components/reach/useReachCoverage.ts';
 import { useViewerState } from '../../state/viewerState.tsx';
@@ -57,7 +58,7 @@ export default function ReachPage() {
 
   return (
     <SurfaceLayout
-      controls={<p>Reach’s legend and summary strip arrive in later slices.</p>}
+      controls={<CoverageLegend />}
       canvas={
         <ReachMap
           station={station}
