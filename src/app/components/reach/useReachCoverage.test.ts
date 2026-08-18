@@ -58,6 +58,7 @@ describe('useReachCoverage', () => {
 
     // Let the initial mount's own recompute settle first.
     await waitFor(() => expect(result.current.pass).toBe('fine'));
+    const preDragResult = result.current.result;
 
     const dragPositions = Array.from({ length: 6 }, (_, i) => ({
       lat: DEFAULT_STATION.qth.lat + i * 0.01,
@@ -68,7 +69,16 @@ describe('useReachCoverage', () => {
       for (const position of dragPositions) result.current.recompute(position);
     });
 
-    await waitFor(() => expect(result.current.pass).toBe('fine'));
+    // `pass` is ALREADY 'fine' from the pre-drag settle above, so a bare
+    // `waitFor(() => pass === 'fine')` can resolve instantly on stale data
+    // if it's checked before any of the drag storm's queued responses have
+    // actually been delivered -- also require the result object to have
+    // genuinely changed, so this only resolves once a *new* fine result
+    // (not the pre-drag one) has actually landed.
+    await waitFor(() => {
+      expect(result.current.pass).toBe('fine');
+      expect(result.current.result).not.toBe(preDragResult);
+    });
 
     // The final rendered result must be the LAST drag position's fine
     // pass -- not an earlier, superseded one. Compare against a direct,
