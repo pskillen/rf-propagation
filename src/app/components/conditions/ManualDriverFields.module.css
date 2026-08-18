@@ -1,0 +1,10 @@
+.root {
+  display: flex;
+  gap: 12px;
+  min-width: 0;
+}
+
+.root > * {
+  flex: 1;
+  min-width: 0;
+}
