@@ -34,9 +34,9 @@ export type ConditionsDriverKind = 'live' | 'manual' | 'preset';
 export interface ConditionsDriver {
   kind: ConditionsDriverKind;
   sfi: number; // plain SFI, NOT SSN
-  kp: number;  // plain 0-9, NOT NOAA's alphanumeric kp string
+  kp: number; // plain 0-9, NOT NOAA's alphanumeric kp string
   fetchedAtMs?: number; // when a 'live' value was actually fetched
-  presetId?: string;    // when kind === 'preset'
+  presetId?: string; // when kind === 'preset'
 }
 
 export interface Conditions {
@@ -112,10 +112,10 @@ property becomes observable once Reach (phase 8) exists.
 ```ts
 // app/lib/urlState/types.ts
 export interface ConditionsUrlState {
-  t?: number;                   // atMs, present only when liveNow is false
-  dk?: ConditionsDriverKind;    // present only when driver.kind !== 'live'
-  sfi?: number;                 // present only when driver.kind !== 'live'
-  kp?: number;                  // present only when driver.kind !== 'live'
+  t?: number; // atMs, present only when liveNow is false
+  dk?: ConditionsDriverKind; // present only when driver.kind !== 'live'
+  sfi?: number; // present only when driver.kind !== 'live'
+  kp?: number; // present only when driver.kind !== 'live'
   gnd?: GroundType;
 }
 ```

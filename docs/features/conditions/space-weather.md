@@ -39,7 +39,7 @@ that feed is one entry per (frequency, reporting-schedule) combination,
 most-recent-`time_tag` first, but the frequency is filtered explicitly
 rather than assuming index `0` is always the 2800 MHz record.
 
-**Kp** is the `kp_index` field (a plain integer 0–9) of the *last*
+**Kp** is the `kp_index` field (a plain integer 0–9) of the _last_
 element of `planetary_k_index_1m.json` — that feed is ordered
 **ascending** by `time_tag` (oldest first, the opposite order from the
 flux feed). `estimated_kp` (a finer nowcast float) and `kp` (NOAA's
@@ -79,7 +79,7 @@ responsible for catching and degrading, never this function.
    `ManualDriverFields`'s commit-on-blur/Enter fields, same pattern as
    Station's `PowerInput`) takes precedence over both of the above until
    `clearManualDriver()` is called ("switch back").
-4. **Preset** — if there's never been a successful live fetch *and* no
+4. **Preset** — if there's never been a successful live fetch _and_ no
    manual entry, falls back to `DEFAULT_CONDITIONS.driver` (SFI 120,
    Kp 2 — see [conditions-model.md](conditions-model.md) for why those
    specific values).
@@ -92,11 +92,11 @@ the next tier on its own next render.
 
 `describeDriverProvenance(driver, nowMs?)`:
 
-| `driver.kind` | Text |
-| --- | --- |
+| `driver.kind`                  | Text                                                           |
+| ------------------------------ | -------------------------------------------------------------- |
 | `'live'` (fresh or last-known) | `Live (N min ago)`, `N = round((nowMs - fetchedAtMs) / 60000)` |
-| `'manual'` | `Manual` |
-| `'preset'` | `Preset` |
+| `'manual'`                     | `Manual`                                                       |
+| `'preset'`                     | `Preset`                                                       |
 
 **`'live'` and last-known share the same `kind` literal** — there's no
 fourth enum value for "stale." The operator tells them apart from the

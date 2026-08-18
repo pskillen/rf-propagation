@@ -21,18 +21,18 @@ Ported from Codeplug Studio's `src/core/domain/bandCatalog.ts`
 (23 amateur entries, 136kHz to mm-wave), trimmed to the ten bands the
 engine actually models:
 
-| id | Range (MHz) | Notes |
-| --- | --- | --- |
-| `160m` | 1.81–2.0 | |
-| `80m` | 3.5–3.8 | |
-| `60m` | 5.2585–5.4065 | Simple range lookup |
-| `40m` | 7.0–7.2 | |
-| `30m` | 10.1–10.15 | Secondary allocation |
-| `20m` | 14.0–14.35 | |
-| `17m` | 18.068–18.168 | |
-| `15m` | 21.0–21.45 | |
-| `12m` | 24.89–24.99 | |
-| `10m` | 28.0–29.7 | |
+| id     | Range (MHz)   | Notes                |
+| ------ | ------------- | -------------------- |
+| `160m` | 1.81–2.0      |                      |
+| `80m`  | 3.5–3.8       |                      |
+| `60m`  | 5.2585–5.4065 | Simple range lookup  |
+| `40m`  | 7.0–7.2       |                      |
+| `30m`  | 10.1–10.15    | Secondary allocation |
+| `20m`  | 14.0–14.35    |                      |
+| `17m`  | 18.068–18.168 |                      |
+| `15m`  | 21.0–21.45    |                      |
+| `12m`  | 24.89–24.99   |                      |
+| `10m`  | 28.0–29.7     |                      |
 
 **Judgment call, flagged:** "HF" here excludes `136khz`/`600m`
 (sub-MF/LF — the engine models skywave/ionospheric HF propagation, not
@@ -74,7 +74,7 @@ One chip per band (kit's `Pill`, `tone="semantic"`, coloured via
 `BandDefinition.color`), wrapped in a plain `<button>` for click
 handling and `aria-pressed` (Pill's own `onClick` prop only wires up
 for `tone="dashed"`, not `"semantic"`). Selecting a chip writes `bandId`
-into Conditions-*adjacent* state — `bandId` is a sibling of `conditions`
+into Conditions-_adjacent_ state — `bandId` is a sibling of `conditions`
 on `ViewerUrlState`/`ViewerState`, not nested inside it.
 
 ### Licence class: visibly distinguished, not hidden
@@ -111,7 +111,9 @@ convention per band.
 // app/lib/urlState/fields/band.ts
 export const bandFieldCodec: UrlStateFieldCodec<'bandId'> = {
   key: 'bandId',
-  encode(value, params) { if (value) params.set('b', value); },
+  encode(value, params) {
+    if (value) params.set('b', value);
+  },
   decode(params, defaults) {
     const raw = params.get('b');
     return raw && KNOWN_BAND_IDS.has(raw) ? raw : defaults.bandId;
