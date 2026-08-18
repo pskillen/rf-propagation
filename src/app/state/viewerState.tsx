@@ -1,5 +1,5 @@
 import { createContext, useContext, useMemo, useState, type ReactNode } from 'react';
-import type { Station } from '@core/domain/station/types';
+import type { AntennaConfig, AntennaPatternFamily, Station } from '@core/domain/station/types';
 import { DEFAULT_STATION } from '@core/domain/station/defaults';
 import { coordsToLocator } from '@core/domain/maidenhead';
 import type { Conditions } from '@core/domain/conditions/types';
@@ -168,19 +168,47 @@ function initialViewerState(): ViewerState {
 }
 
 /**
+ * A plausible antenna for a bare pattern-family name, with no
+ * height/gain/heading of its own to go on (the URL carries none) --
+ * reasonable defaults per family, close to `DEFAULT_STATION`'s own
+ * dipole's own judgment-call figures. Used only when `applyStationUrlOverrides`
+ * finds no EXISTING antenna of the requested family to activate instead.
+ */
+const ANTENNA_PATTERN_FAMILIES: readonly AntennaPatternFamily[] = [
+  'omnidirectional-vertical',
+  'bidirectional-transverse',
+  'directional-lobe',
+  'multi-lobe-conical',
+];
+
+function isAntennaPatternFamily(value: string): value is AntennaPatternFamily {
+  return (ANTENNA_PATTERN_FAMILIES as readonly string[]).includes(value);
+}
+
+function synthesizeAntennaForFamily(family: AntennaPatternFamily): AntennaConfig {
+  const base = { id: `url-${family}`, name: `${family} (from link)`, heightM: 7, gainDbi: 2.1 };
+  if (family === 'directional-lobe') return { ...base, family, azimuthDeg: 0 };
+  return { ...base, family };
+}
+
+/**
  * Layers `StationUrlState`'s lossy overrides on top of an already-loaded
- * `Station` (Slice 4, F7.4). `qlat`/`qlon` override `qth` (locator
- * recomputed to stay consistent, source becomes `'default'` -- neither
- * `'map'` nor `'geolocation'`/`'address'`/`'maidenhead'` accurately
- * describes "came from a shared link"); `pwr`/`noise` override directly.
- * `ant` (the active antenna's pattern family) is the lossiest field --
- * `StationUrlState`'s own doc comment already flags this is "enough to
- * reconstruct a PLAUSIBLE antenna," not the exact one: this function
- * looks for an antenna already in the (loaded-or-default) array with a
- * matching `family` and makes IT active, rather than fabricating a new
- * antenna config from just a family name (no height/gain/heading is
- * carried in the URL to build one with). If none match, the family
- * override is silently dropped -- a documented lossy edge, not a crash.
+ * `Station` (Slice 4, F7.4; extended in Slice 5 to synthesize a matching
+ * antenna rather than dropping the override). `qlat`/`qlon` override
+ * `qth` (locator recomputed to stay consistent, source becomes
+ * `'default'` -- neither `'map'` nor `'geolocation'`/`'address'`/
+ * `'maidenhead'` accurately describes "came from a shared link");
+ * `pwr`/`noise` override directly. `ant` (the active antenna's pattern
+ * family) is the lossiest field -- `StationUrlState`'s own doc comment
+ * already flags this is "enough to reconstruct a PLAUSIBLE antenna," not
+ * the exact one: this function first looks for an antenna already in the
+ * (loaded-or-default) array with a matching `family` and makes IT
+ * active; only when NONE exists does it synthesize a new one
+ * (`synthesizeAntennaForFamily`) and append it, active. CORRECTION
+ * (Slice 5): Slice 4's own version silently dropped the override with no
+ * match at all -- found to matter in practice once Slice 5's presets
+ * needed a SPECIFIC family (e.g. a vertical) to actually take effect for
+ * a first-time visitor whose only saved antenna is the default dipole.
  */
 function applyStationUrlOverrides(station: Station, override: StationUrlState): Station {
   const lat = override.qlat ?? station.qth.lat;
@@ -190,15 +218,23 @@ function applyStationUrlOverrides(station: Station, override: StationUrlState): 
       ? { lat, lon, locator: coordsToLocator(lat, lon), source: 'default' as const }
       : station.qth;
 
-  const activeAntennaId =
-    override.ant !== undefined
-      ? (station.antennas.find((antenna) => antenna.family === override.ant)?.id ??
-        station.activeAntennaId)
-      : station.activeAntennaId;
+  let antennas = station.antennas;
+  let activeAntennaId = station.activeAntennaId;
+  if (override.ant !== undefined && isAntennaPatternFamily(override.ant)) {
+    const matching = station.antennas.find((antenna) => antenna.family === override.ant);
+    if (matching) {
+      activeAntennaId = matching.id;
+    } else {
+      const synthesized = synthesizeAntennaForFamily(override.ant);
+      antennas = [...station.antennas, synthesized];
+      activeAntennaId = synthesized.id;
+    }
+  }
 
   return {
     ...station,
     qth,
+    antennas,
     activeAntennaId,
     powerW: override.pwr ?? station.powerW,
     noiseEnvironment: override.noise ?? station.noiseEnvironment,

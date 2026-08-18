@@ -257,11 +257,16 @@ onto the loaded-or-default `Station`, recomputing the locator to stay
 consistent with overridden coordinates. `ant` (the active antenna's
 pattern family) is the lossiest field, per `StationUrlState`'s own doc
 comment ("enough to reconstruct a PLAUSIBLE antenna," not the exact
-one): rather than fabricating a new antenna config from a bare family
-name (no height/gain/heading travels in the URL to build one with), this
-looks for an antenna already in the array with a matching `family` and
-activates THAT one; with no match, the override is silently dropped — a
-documented lossy edge, not a crash.
+one): this looks for an antenna already in the array with a matching
+`family` and activates THAT one first. **CORRECTED IN SLICE 5:** with no
+match, this originally dropped the override silently; Slice 5's own
+presets need a SPECIFIC family (e.g. a vertical) to actually take effect
+for a first-time visitor whose only saved antenna is the default dipole,
+so `applyStationUrlOverrides` now synthesizes a plausible new antenna for
+the requested family instead (`synthesizeAntennaForFamily` — sensible
+default height/gain, since none travels in the URL) and appends it,
+active. A malformed `ant` value that isn't one of the four real pattern
+families is still silently dropped, not a crash.
 
 **Realism-unlock round-trips too.** `playbackFieldCodec` (new field
 codec, `ru` param) carries `playback.unrealismUnlocked` — the one field
@@ -281,6 +286,61 @@ old link would hit.
 "Copy share link," open the copied URL fresh — TX power shows 400 W.
 Separately, opening a URL with `?ru=1` shows the realism-unlock toggle
 already on.
+
+## Slice 5 — Preset starting points (F7.5)
+
+**Where.** `src/app/state/presets.ts` — `PRESETS`, four canned
+`ViewerUrlState` objects. `PresetMenu` (Mantine `Menu`, same header
+placement as Reset/Share) renders each as a plain `<a href>` built from
+`encodeViewerUrlState(preset.urlState)` — clicking one is a REAL browser
+navigation, the exact same "decode on mount" path
+`ViewerStateProvider`'s `initialViewerState` already uses for any shared
+link. No second live-apply mechanism exists or is needed: "each is a
+permalink internally" (F7.5's own AC) is true by construction, not by
+convention.
+
+**Concrete preset list**, grounded in
+`src/core/domain/propagation/validation.test.ts`'s own worked examples
+(V14/V16/V17) rather than the prose in `physics-and-fidelity.md` §6,
+since the test file has the exact numeric inputs each anchor actually
+asserts against:
+
+| Preset             | Band | Range                                         | SFI/Kp  | Antenna        | Time                                           | Grounded in                                                 |
+| ------------------ | ---- | --------------------------------------------- | ------- | -------------- | ---------------------------------------------- | ----------------------------------------------------------- |
+| Textbook skip zone | 20 m | ~200 km (200 km due north of the default QTH) | 120 / 2 | Vertical       | 2026-06-21 12:00 UTC (daytime)                 | V17 — target sits in the skip zone                          |
+| NVIS setup         | 40 m | ~200 km (200 km due east)                     | 120 / 2 | Low dipole     | 2026-06-21 12:00 UTC (midday)                  | V16 — Good, no skip zone inside 400 km                      |
+| Band above its MUF | 10 m | ~3000 km (3000 km due south)                  | 70 / 2  | Default dipole | 2026-06-21 00:00 UTC (night)                   | V14 — escapes / Unlikely, above MUF                         |
+| Greyline path      | 20 m | London → Tokyo (~9600 km)                     | 120 / 2 | Default dipole | 2026-03-20 18:00 UTC (~London sunset, equinox) | Invented for this phase — no committed worked anchor exists |
+
+Station/target coordinates and exact timestamps are this phase's own
+reasonable approximation of each scenario — the validation harness
+anchors `frequencyMhz`/`totalGroundRangeKm`/`sfi`/`solarZenithDeg`
+directly, not a specific lat/lon pair or wall-clock instant; picking one
+that plausibly produces daytime/night at the right places is a judgment
+call, documented in `presets.ts`'s own doc comment, not a re-derivation
+of the engine's exact solar-zenith inputs.
+
+**A correction this slice needed, not just Slice 4's:** the first three
+presets specify a NON-dipole antenna (vertical, low dipole — a first-time
+visitor's only saved antenna is the default 40 m dipole). Slice 4's own
+`applyStationUrlOverrides` silently dropped an `ant` override with no
+matching family in the array — fine for a general permalink (lossy edge,
+documented), but it meant a preset's own stated antenna type would
+silently NOT apply for most visitors. Fixed by extending that function
+to synthesize a plausible antenna for the family when none matches
+(`synthesizeAntennaForFamily`), rather than special-casing presets with
+their own separate apply path.
+
+**"No steps, no narration, no next button"** (F7.5's own AC, and the
+plan file's own named anti-pattern): nothing here has a step counter or
+sequencing state to begin with — a plain `<a href>` list has no state of
+its own between "closed" and "navigated away."
+
+**Verified live** (`npm run dev`): opening the menu and selecting
+"Textbook skip zone" lands on 20 m @ 14.175 MHz · SFI 120 · Kp 2 ·
+Manual, a target ~200 km north, and the antenna summary showing
+"omnidirectional-vertical (from link) @ 7 m" — confirming the synthesized
+antenna both applied and is now the active one.
 
 ## Known gaps
 

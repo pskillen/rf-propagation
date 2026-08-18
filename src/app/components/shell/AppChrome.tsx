@@ -22,6 +22,8 @@ export interface AppChromeProps {
   resetButton?: ReactNode;
   /** Filled by phase 10's `ShareButton` (F7.4) — same "always available" header placement as `resetButton`. */
   shareButton?: ReactNode;
+  /** Filled by phase 10's `PresetMenu` (F7.5) — same "always available" header placement. */
+  presetMenu?: ReactNode;
   children: ReactNode;
 }
 
@@ -61,6 +63,7 @@ export default function AppChrome({
   transportControl,
   resetButton,
   shareButton,
+  presetMenu,
   children,
 }: AppChromeProps) {
   const location = useLocation();
@@ -85,6 +88,7 @@ export default function AppChrome({
             </NavLink>
           ))}
         </nav>
+        {presetMenu}
         {shareButton}
         {resetButton}
       </header>

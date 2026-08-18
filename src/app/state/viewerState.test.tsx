@@ -139,8 +139,21 @@ describe('ViewerState station/playback URL overrides (F7.4)', () => {
     expect(station.activeAntennaId).toBe(DEFAULT_STATION.activeAntennaId);
   });
 
-  it('silently drops an `ant` override with no matching antenna in the (default) array', () => {
+  it('synthesizes a plausible antenna for an `ant` override with no matching family in the (default) array (Slice 5 correction)', () => {
     window.history.pushState({}, '', '/?ant=multi-lobe-conical');
+    render(
+      <ViewerStateProvider>
+        <StateProbe />
+      </ViewerStateProvider>,
+    );
+    const { station } = readState();
+    expect(station.activeAntennaId).not.toBe(DEFAULT_STATION.activeAntennaId);
+    const active = station.antennas.find((antenna) => antenna.id === station.activeAntennaId);
+    expect(active?.family).toBe('multi-lobe-conical');
+  });
+
+  it('ignores a malformed `ant` value (not a real pattern family)', () => {
+    window.history.pushState({}, '', '/?ant=not-a-real-family');
     render(
       <ViewerStateProvider>
         <StateProbe />
