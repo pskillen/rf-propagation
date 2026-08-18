@@ -245,7 +245,8 @@ export function buildShellMesh(
   material.customProgramCacheKey = () => 'reach-shell-fresnel-daynight';
   material.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, uniforms);
-    shader.vertexShader = `varying vec3 vShellWorldPosition;
+    shader.vertexShader = `uniform vec3 uSunDir;
+varying vec3 vShellWorldPosition;
 varying vec3 vShellWorldNormal;
 varying float vShellNdotSun;
 ${shader.vertexShader}`.replace(
@@ -261,7 +262,6 @@ uniform float uBaselineOpacity;
 uniform float uOpacityMin;
 uniform float uOpacityMax;
 uniform float uFresnelPower;
-uniform vec3 uSunDir;
 uniform float uNightPresence;
 uniform float uDThinning;
 uniform float uSpatialDayNight;
