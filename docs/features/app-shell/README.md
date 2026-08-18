@@ -5,11 +5,12 @@ Codeplug Studio `v2` component kit and Mantine theme, a four-surface
 routable shell (Reach/Path/Timeline/Explore), a URL-serializable state
 codec every later surface registers its own fields with, and a
 responsive control-panel-plus-canvas layout skeleton every surface
-builds inside. Nothing on screen does anything yet — every surface is
-an empty, routable placeholder. Later phases fill it in: Station
-(phase 6) and Conditions (phase 7) occupy the two reserved chrome
-slots, Reach (phase 8) is the first surface to call the propagation
-engine.
+builds inside. At the time this phase shipped, nothing on screen did
+anything yet — every surface was an empty, routable placeholder. Later
+phases filled it in: Station (phase 6) and Conditions (phase 7) occupy
+the two reserved chrome slots; [Reach](../reach/README.md) (phase 8) is
+the first surface to call the propagation engine and no longer a
+placeholder — Path, Timeline and Explore still are.
 
 ## Implementation status
 
@@ -18,10 +19,10 @@ engine.
 | Component kit + theme copy | Shipped | 27 of Studio's 40 `v2` components (the generic subset — Studio's project/build/membership/wire-export chrome excluded), base + v2 Mantine theme layers, `breakpoints.ts`/`iconSizes.ts`, the `dataTable` support lib — [component-kit-and-shell.md](component-kit-and-shell.md) |
 | `DesignSystemV2Provider` mount | Shipped | Mounted once at the true root — a deliberate simplification from Studio's per-page nesting, since this app has no v1 pages — [component-kit-and-shell.md](component-kit-and-shell.md) |
 | App chrome + four-surface routing | Shipped | `AppChrome` (new component, not a port of Studio's project-chip `AppShell.tsx`) + `react-router-dom` v7 data router — [component-kit-and-shell.md](component-kit-and-shell.md) |
-| URL state codec | Shipped | Versioned, field-registry codec; only the `surface` field exists so far — [url-state-codec.md](url-state-codec.md) |
-| Responsive layout skeleton | Shipped | `SurfaceLayout` controls-plus-canvas grid, mounted on all four placeholder surfaces — [component-kit-and-shell.md](component-kit-and-shell.md) |
+| URL state codec | Shipped | Versioned, field-registry codec; only the `surface` field existed at this phase's own ship time — `station`/`conditions`/`bandId` (phase 7) and `target` (phase 8) have since been registered the same way — [url-state-codec.md](url-state-codec.md) |
+| Responsive layout skeleton | Shipped | `SurfaceLayout` controls-plus-canvas grid, mounted on all four surfaces (Reach is no longer a placeholder as of phase 8) — [component-kit-and-shell.md](component-kit-and-shell.md) |
 | Station bar / Conditions bar content | Both shipped | `stationBar` slot filled by `StationBar` (phase 6) — see [Station](../station/README.md); `conditionsBar` slot filled by `ConditionsBar` (phase 7) — see [Conditions](../conditions/README.md) |
-| Any propagation-engine wiring | Not started | This phase imports nothing from `src/core/domain/propagation/` or `src/integrations/propagation/`; Reach (phase 8) is the first surface to call the engine |
+| Any propagation-engine wiring | Not started (at this phase) | This phase itself imports nothing from `src/core/domain/propagation/` or `src/integrations/propagation/`; [Reach](../reach/README.md) (phase 8) is the first surface to call the engine |
 
 ## Documentation map
 

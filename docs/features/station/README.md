@@ -25,8 +25,8 @@ that bar as an improvement, never a precondition.
 | Antenna model + absolute dBi | Shipped | Pattern-family gain-shape math ported from mk1, `elevationGainDbi` adds the absolute-dBi layer mk1 never had — [antenna-model.md](antenna-model.md) |
 | TX power + noise environment inputs | Shipped | `PowerInput` (commits on blur/Enter), `NoiseEnvironmentControl` (imports phase 3's `NoiseEnvironment`) — [station-model.md](station-model.md) |
 | Station bar chrome | Shipped | Fills `AppChrome`'s `stationBar` slot; compact summary + always-visible TX power field + an "Edit station" affordance expanding QTH/antenna/noise editors |
-| Propagation engine wiring | Not started | This phase imports nothing from `src/core/domain/propagation/` beyond the `NoiseEnvironment` type. Phase 8 (Reach) is the first caller of `elevationGainDbi`/`computeCoverageGrid`/`computeLinkBudget` with a Station's data |
-| Conditions bar | Not started | Phase 7's concern — the reserved `conditionsBar` slot stays empty |
+| Propagation engine wiring | Shipped (phase 8) | [../reach/README.md](../reach/README.md)'s `buildCoverageGridInput.ts` is the first caller of `computeCoverageGrid` with a Station's data (`powerW`, active antenna's `gainDbi`, `noiseEnvironment`) |
+| `station` lifted into shared `ViewerState` | Shipped (phase 8) | Reach's live-draggable marker needs to both read and write Station from outside `StationBar` — see [../reach/coverage-surface.md](../reach/coverage-surface.md#deviations) |
 | Realism-unlock / draggable heading | Deferred | Antenna heading ships as a numeric `azimuthDeg` field only; a draggable compass-needle control and out-of-range value handling belong to phase 10 (F7.3) |
 
 ## Documentation map

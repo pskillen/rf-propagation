@@ -9,10 +9,11 @@ live NOAA SWPC data by default, a full fallback chain when it isn't
 available, and provenance that's always visible so the operator never
 has to guess which of the four states they're looking at.
 
-Nothing in this phase calls the propagation engine — no imports from
-`src/core/domain/propagation/`. Phase 8 (Reach) is the first thing to
-feed `Conditions.driver.sfi`/`.kp`, `Conditions.atMs`, `Conditions.ground`
-and the selected band's frequency into `computeCoverageGrid`.
+Nothing in this phase calls the propagation engine directly — no imports
+from `src/core/domain/propagation/`. [Reach](../reach/README.md)
+(phase 8) is the first thing to feed `Conditions.driver.sfi`/`.kp`,
+`Conditions.atMs`, `Conditions.ground` and the selected band's frequency
+into `computeCoverageGrid`, via `buildCoverageGridInput.ts`.
 
 ## Implementation status
 
@@ -25,7 +26,8 @@ and the selected band's frequency into `computeCoverageGrid`.
 | Fallback chain + provenance | Shipped | `useConditionsDriver`: live → last-known (age shown) → manual → preset, always-visible provenance text, silent degradation on fetch failure — [space-weather.md](space-weather.md) |
 | Conditions bar chrome | Shipped | Fills `AppChrome`'s `conditionsBar` slot; compact summary + always-visible provenance + an "Edit conditions" affordance expanding the scrubber/driver/ground/band controls |
 | Amateur-HF band catalogue + chips | Shipped | Ten bands (160m–10m) ported and trimmed from Studio's `bandCatalog.ts`; `BandChips` + a clamped `FrequencyField` — [band-catalog.md](band-catalog.md) |
-| Propagation engine wiring | Not started | This phase imports nothing from `src/core/domain/propagation/`. Phase 8 (Reach) is the first caller |
+| Propagation engine wiring | Shipped (phase 8) | [../reach/README.md](../reach/README.md)'s `buildCoverageGridInput.ts` is the first caller, feeding `driver.sfi`/`.kp`, `atMs` and `ground` into `computeCoverageGrid` |
+| `conditions`/`bandId`/`frequencyMhz` published into shared `ViewerState` | Shipped (phase 8) | One-way publish from `ConditionsBar`'s existing hooks — Reach reads it, this bar still owns editing — see [../reach/coverage-surface.md](../reach/coverage-surface.md#deviations) |
 | Time-lapse transport control | Not started | The "now" toggle here is a simple live-tracking flag; the full play/pause/speed/scrub transport is FR-31, phase 10 (F7.1) |
 | Per-operator licence class | Not started | Flagged spec gap — see [band-catalog.md](band-catalog.md#licence-class-visibly-distinguished-not-hidden) |
 

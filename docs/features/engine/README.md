@@ -28,7 +28,7 @@ and then guard against those defects.
 | Link budget (losses, noise, mode thresholds, reliability) | Shipped | EIRP, FSPL, D-layer absorption, ground/polarisation loss, noise floor, per-mode margins, reliability — [link-budget-and-reliability.md](link-budget-and-reliability.md) |
 | Calibration anchors A/B, V10–V18, V20–V23 | Shipped | Full V1–V23 harness gates CI — [link-budget-and-reliability.md](link-budget-and-reliability.md) |
 | Multi-hop path solving, coverage grid, illustration rays, Worker | Shipped | Coverage grid and illustration rays are separate code paths at separate resolutions — [multihop-coverage-and-rays.md](multihop-coverage-and-rays.md) |
-| UI surfaces (Reach, Explore, Compare, Path/Timeline) | Not started | Later phases; Conditions (time, SFI/Kp source) doesn't exist as a UI surface until phase 7 |
+| UI surfaces | Reach shipped (phase 8) | [../reach/README.md](../reach/README.md) is the first caller of `computeCoverageGrid` with real Station/Conditions data; Explore, Compare, Path/Timeline are later phases |
 
 ## Documentation map
 
