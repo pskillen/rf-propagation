@@ -5,12 +5,13 @@
 // shows provenance next to the SFI/Kp values (F4.7,
 // ux-and-ia.md §8 "Solar inputs show provenance inline") — never just on
 // the live path.
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useDebouncedValue } from '@mantine/hooks';
 import type { GroundType } from '@core/domain/propagation/losses';
 import type { Conditions } from '@core/domain/conditions/types';
 import { DEFAULT_CONDITIONS } from '@core/domain/conditions/defaults';
 import { UK_AMATEUR_BANDS, bandMidpointMhz } from '@core/domain/bandCatalog';
+import { DEFAULT_BAND_ID } from '../../lib/urlState/types.ts';
 import type { ConditionsUrlState } from '../../lib/urlState/types.ts';
 import { describeDriverProvenance, useConditionsDriver } from '../../hooks/useConditionsDriver.ts';
 import { useViewerUrlState } from '../../hooks/useViewerUrlState.ts';
@@ -47,15 +48,34 @@ const GROUND_OPTIONS: SegmentedControlOption<GroundType>[] = [
  * interaction" AC) — this component's own manual `TimeScrubber` drag
  * counts as interaction the same way the transport control's own scrub
  * slider does.
+ *
+ * `resetToken` — Slice 2's (F7.2) global reset. A plain `key`-based
+ * remount was tried first and rejected: `App.tsx`'s `handleReset` also
+ * clears the URL via `useViewerUrlState`'s `setState`, but React Router's
+ * data router applies that navigation asynchronously, so a remount
+ * scheduled in the SAME synchronous batch reliably raced ahead of the
+ * URL actually clearing and re-seeded this component's local state from
+ * the STALE (pre-reset) query string. Resetting local state directly, in
+ * an effect keyed on `resetToken`, sidesteps the URL entirely for this
+ * component's own fields (`ground`/driver/`bandId`/`frequencyMhz`) —
+ * the URL still gets cleared for other fields, just not depended on here.
  */
 export interface ConditionsBarProps {
   atMs: number;
   liveNow: boolean;
   onScrub: (atMs: number) => void;
   onGoLive: () => void;
+  /** Bumped by `App.tsx`'s reset button; any change (not the first render) resets ground/driver/band/frequency to their defaults. */
+  resetToken?: number;
 }
 
-export default function ConditionsBar({ atMs, liveNow, onScrub, onGoLive }: ConditionsBarProps) {
+export default function ConditionsBar({
+  atMs,
+  liveNow,
+  onScrub,
+  onGoLive,
+  resetToken,
+}: ConditionsBarProps) {
   const { state: urlState, setState: setUrlState } = useViewerUrlState();
   const { state: viewerState, setState: setViewerState } = useViewerState();
 
@@ -91,6 +111,23 @@ export default function ConditionsBar({ atMs, liveNow, onScrub, onGoLive }: Cond
   const [bandId, setBandId] = useState(urlState.bandId);
   const selectedBand = UK_AMATEUR_BANDS.find((band) => band.id === bandId) ?? UK_AMATEUR_BANDS[0];
   const [frequencyMhz, setFrequencyMhz] = useState(() => bandMidpointMhz(bandId));
+
+  // Global reset (F7.2) -- skips the very first render (a `resetToken`
+  // change is only meaningful after mount; `undefined -> 0` on first
+  // paint must not immediately "reset" a component that was never
+  // touched). See this component's own doc comment above for why this
+  // resets local state directly rather than via a `key`-based remount.
+  const lastResetTokenRef = useRef(resetToken);
+  useEffect(() => {
+    if (resetToken === undefined || resetToken === lastResetTokenRef.current) return;
+    lastResetTokenRef.current = resetToken;
+    setGround(DEFAULT_CONDITIONS.ground);
+    clearManualDriver();
+    setEditing(false);
+    setBandId(DEFAULT_BAND_ID);
+    setFrequencyMhz(bandMidpointMhz(DEFAULT_BAND_ID));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resetToken]);
 
   function selectBand(nextBandId: string) {
     setBandId(nextBandId);

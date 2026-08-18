@@ -18,6 +18,8 @@ export interface AppChromeProps {
    * by separate per-surface wiring.
    */
   transportControl?: ReactNode;
+  /** Filled by phase 10's `ResetButton` (F7.2) — "always available," so it lives in the header next to primary nav, not behind any surface panel. */
+  resetButton?: ReactNode;
   children: ReactNode;
 }
 
@@ -55,6 +57,7 @@ export default function AppChrome({
   stationBar,
   conditionsBar,
   transportControl,
+  resetButton,
   children,
 }: AppChromeProps) {
   const location = useLocation();
@@ -79,6 +82,7 @@ export default function AppChrome({
             </NavLink>
           ))}
         </nav>
+        {resetButton}
       </header>
       <div className={classes.stationBar} data-slot="station-bar">
         {stationBar}

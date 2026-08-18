@@ -105,6 +105,54 @@ pause-on-interaction behaviour are covered instead by
 `TransportControl.test.tsx`, which mocks `requestAnimationFrame`
 directly.
 
+## Slice 2 — Reset to defaults (F7.2)
+
+**Where.** A `ResetButton` in `AppChrome`'s header, next to primary nav —
+"always available" (F7.2's own AC), not behind any surface panel. All
+the actual reset logic lives in `App.tsx`'s `Shell`'s `handleReset`,
+since it needs the shared clock, `ViewerState`, the URL codec, and the
+router all at once; `ResetButton` itself is presentational.
+
+**What it restores**, in one `ViewerState.setState` call: `station` →
+`DEFAULT_STATION` (also persisted via `saveStation`, so a reload doesn't
+resurrect the pre-reset localStorage value), `conditions` →
+`DEFAULT_CONDITIONS`, `bandId`/`frequencyMhz` → the default band and its
+midpoint, `target` → `null`, `surface` → `'reach'` (via `navigate('/')`),
+`display.globeToggles` → `DEFAULT_GLOBE_TOGGLES`, `playback` →
+`DEFAULT_PLAYBACK` (stops any active playback). The shared clock resets
+via `goLive()` (live "now", matching `DEFAULT_CONDITIONS.liveNow`).
+
+**A real race, found empirically, not assumed.** The first implementation
+bumped a `key` prop to force `ConditionsBar` to remount and re-seed its
+own local `ground`/driver/`bandId`/`frequencyMhz` state from a
+just-cleared URL. This reliably raced: `handleReset` also calls
+`useViewerUrlState`'s `setState` (→ react-router's `setSearchParams`),
+and the data router applies that navigation _asynchronously_ — a remount
+scheduled in the same synchronous batch consistently mounted before the
+URL had actually cleared, and re-seeded from the STALE (pre-reset) query
+string. Fixed by giving `ConditionsBar` a `resetToken` prop instead: an
+effect keyed on it resets `ground`/driver/`bandId`/`frequencyMhz`
+directly to hard defaults, with no dependency on the URL's update timing
+at all. `StationBar` still uses a plain `key`-based remount (safe there —
+it holds no URL-derived state, only closes its own edit-panel UI).
+
+**"No action anywhere destroys state the operator can't recover"
+(F7.2's own AC, reviewed as a checklist item for this whole PR, not a
+single line of code):** target selection, display toggles, and map/globe
+mode (all introduced in phases 8–9) are each covered by this Reset —
+none of them had a destructive, unreversible action of their own with no
+undo path (no antenna-delete or similar exists yet either).
+
+**Verified live** (`npm run dev`): starting from `/?b=20m`, clicking
+Reset restores the 40 m band and its 7.1 MHz midpoint, and the URL no
+longer contains `b=20m`. Covered by `App.test.tsx` (full-app integration,
+since the reset logic spans the router/URL codec/`ViewerState`/clock
+together) — including a `navigateTo` test helper that dispatches a
+`popstate` event after `window.history.pushState`, which turned out to
+be necessary for `createBrowserRouter`'s `useSearchParams()` to notice a
+directly-pushed URL at all inside this test environment (its internal
+history object doesn't listen for a bare `pushState`).
+
 ## Known gaps
 
 - **No dedicated `ReachPage`-level integration test for
