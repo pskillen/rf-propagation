@@ -26,17 +26,21 @@ import {
   buildCoverageGroundMesh,
   buildCutawayClippingPlane,
   buildNightShadeMesh,
+  buildRayPaths,
   buildShellMesh,
   buildSunMarkerMesh,
   buildTerminatorPaths,
   canonicalLayerIndex,
   isCoverageGroundLayer,
   isNightShadeLayer,
+  isRayGlobePath,
   isSunMarkerLayer,
   updateCoverageGroundMesh,
   updateShellFresnel,
   type CoverageGroundLayer,
+  type GlobePath,
   type NightShadeLayer,
+  type RenderedRay,
   type ShellDisplayOptions,
   type SunMarkerLayer,
   type TerminatorPath,
@@ -74,6 +78,8 @@ export interface HfPropagationGlobeProps {
   cutawayEnabled?: boolean;
   /** Slice-plane bearing (degrees true). Default 0 (the active antenna's heading when directional, per this phase's plan file). */
   sliceBearingDeg?: number;
+  /** Illustration-ray overlay (F8.2, phase 11) — already coloured/filtered/soloed by the caller; this component only draws them. Default none. */
+  rays?: RenderedRay[];
 }
 
 type CustomLayerEntry =
@@ -86,12 +92,12 @@ function pathColor(path: object): string {
   return (path as TerminatorPath).color;
 }
 
-function pathDashLength(): number {
-  return TERMINATOR_DASH_LENGTH;
+function pathDashLength(path: object): number {
+  return isRayGlobePath(path) ? path.dashLengthFraction : TERMINATOR_DASH_LENGTH;
 }
 
-function pathDashGap(): number {
-  return TERMINATOR_DASH_GAP;
+function pathDashGap(path: object): number {
+  return isRayGlobePath(path) ? path.dashGapFraction : TERMINATOR_DASH_GAP;
 }
 
 export default function HfPropagationGlobe({
@@ -104,6 +110,7 @@ export default function HfPropagationGlobe({
   coverageResult,
   cutawayEnabled = false,
   sliceBearingDeg = 0,
+  rays,
 }: HfPropagationGlobeProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const globeRef = useRef<GlobeMethods | undefined>(undefined);
@@ -139,6 +146,20 @@ export default function HfPropagationGlobe({
     if (!terminatorEnabled || environmentAtMs == null) return [];
     return buildTerminatorPaths(computeSolarTerminator(environmentAtMs));
   }, [terminatorEnabled, environmentAtMs]);
+
+  // F8.2 (phase 11) -- rays render on both the cross-section AND the globe
+  // from the SAME `IllustrationRay[]` the caller already generated once;
+  // this component only converts each ray into a drawable path, it never
+  // calls `generateIllustrationRays` itself.
+  const rayPaths = useMemo(
+    () => buildRayPaths(rays ?? [], display.exaggerationFactor),
+    [rays, display.exaggerationFactor],
+  );
+
+  const allPaths = useMemo<GlobePath[]>(
+    () => [...terminatorPaths, ...rayPaths],
+    [terminatorPaths, rayPaths],
+  );
 
   const points = useMemo(
     () => [{ kind: 'transmitter' as const, lat: txLat, lng: txLon, color: TRANSMITTER_COLOR }],
@@ -268,7 +289,7 @@ export default function HfPropagationGlobe({
         customLayerData={customLayerData}
         customThreeObject={shellObjectAccessor}
         customThreeObjectUpdate={dataUpdateAccessor}
-        pathsData={terminatorPaths}
+        pathsData={allPaths}
         pathPoints="points"
         pathPointLat={(p: unknown) => (p as [number, number, number])[0]}
         pathPointLng={(p: unknown) => (p as [number, number, number])[1]}

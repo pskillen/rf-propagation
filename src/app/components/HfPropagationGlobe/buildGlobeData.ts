@@ -36,11 +36,16 @@
 import * as THREE from 'three';
 import type { CoverageGridResult } from '@core/domain/propagation/coverageGrid';
 import type { GeoPoint } from '@core/domain/propagation/greatCircle';
+import type { IllustrationRay } from '@core/domain/propagation/illustrationRays';
 import type { LayerId, LayerState } from '@core/domain/propagation/layers';
 import { colorForLayer, LAYER_IDS_INNER_TO_OUTER } from '@core/domain/propagation/layerColor';
 import { cutawayPlaneNormal, latLonToGlobeCartesian } from '@core/domain/propagation/cutawayPlane';
+import {
+  rayDashLengthFraction,
+  rayGapLengthFraction,
+} from '@core/domain/propagation/rayDashPattern';
 import { cellFillStyle } from '../reach/cellFillStyle.ts';
-import { altitudeKmToGlobeRadiusUnits } from './globeAltitude.ts';
+import { altitudeKmToGlobeRadiusUnits, GLOBE_EARTH_RADIUS_KM } from './globeAltitude.ts';
 
 /**
  * `three-globe`'s own internal scene-unit radius for the globe mesh
@@ -371,6 +376,72 @@ export function buildTerminatorPaths(ring: GeoPoint[]): TerminatorPath[] {
     ),
     color: TERMINATOR_PATH_COLOR,
   }));
+}
+
+/**
+ * Illustration ray overlay (F8.2, phase 11's Slice 2) — "wiring this
+ * phase's ray overlay ... into" the globe, per phase 11's own explicit
+ * scope note (globe rendering internals stay phase 9's; only the ray/
+ * filter/solo state feed is this phase's addition). Restores, in reduced
+ * form, the `rayResultsToGlobePaths`-equivalent this file's own header
+ * flagged as dropped from the reference port pending phase 11.
+ */
+export type RayGlobePath = {
+  kind: 'ray';
+  points: [number, number, number][];
+  color: string;
+  dashLengthFraction: number;
+  dashGapFraction: number;
+};
+
+export type GlobePath = TerminatorPath | RayGlobePath;
+
+export interface RenderedRay {
+  ray: IllustrationRay;
+  color: string;
+}
+
+/**
+ * `pathDashLength`/`pathDashGap` (react-globe.gl) take a FRACTION of the
+ * path's own total length, same convention `TERMINATOR_DASH_LENGTH`/
+ * `TERMINATOR_DASH_GAP` already use — `rayDashLengthFraction`/
+ * `rayGapLengthFraction` (`@core/domain/propagation/rayDashPattern`)
+ * already compute exactly that, given the ray's own total arc length in
+ * radians. `RayPoint.distanceAlongBearingKm` (cumulative ground distance)
+ * gives that arc length directly (`/ GLOBE_EARTH_RADIUS_KM`) without a
+ * separate lat/lon-based great-circle summation.
+ */
+function rayArcLengthRad(points: IllustrationRay['points']): number {
+  if (points.length === 0) return 0;
+  const totalKm = points[points.length - 1]!.distanceAlongBearingKm;
+  return totalKm / GLOBE_EARTH_RADIUS_KM;
+}
+
+export function buildRayPaths(
+  renderedRays: RenderedRay[],
+  exaggerationFactor: number = 1,
+): RayGlobePath[] {
+  return renderedRays.map(({ ray, color }) => {
+    const totalArcRad = rayArcLengthRad(ray.points);
+    return {
+      kind: 'ray' as const,
+      points: ray.points.map(
+        (p) =>
+          [
+            p.latDeg,
+            p.lonDeg,
+            altitudeKmToGlobeRadiusUnits(exaggeratedAltitudeKm(p.altitudeKm, exaggerationFactor)),
+          ] as [number, number, number],
+      ),
+      color,
+      dashLengthFraction: rayDashLengthFraction(ray, totalArcRad),
+      dashGapFraction: rayGapLengthFraction(ray, totalArcRad),
+    };
+  });
+}
+
+export function isRayGlobePath(path: object): path is RayGlobePath {
+  return (path as { kind?: string }).kind === 'ray';
 }
 
 export type NightShadeLayer = {
