@@ -12,6 +12,7 @@ import type { StationUrlState, SurfaceId } from '../lib/urlState/types.ts';
 import { DEFAULT_GLOBE_TOGGLES, type GlobeToggles } from './globeToggles.ts';
 import { DEFAULT_PLAYBACK, type PlaybackState } from './playback.ts';
 import { DEFAULT_RAY_CONTROLS, type RayControlsState } from './rayControls.ts';
+import { DEFAULT_TIMELINE_STATE, type TimelineState } from './timeline.ts';
 
 /**
  * `ViewerState.target`'s source — how the operator set the current target.
@@ -104,6 +105,8 @@ export interface ViewerState {
   playback: PlaybackState;
   /** Compare's own state (F9.1, phase 12) — see `@core/domain/propagation/compareScenario`'s own doc comment for why this type lives in `core` rather than alongside `GlobeToggles`/`RayControlsState`. */
   compare: CompareState;
+  /** Timeline's own reference distance/bearing, used only when `target === null` (F11.1, phase 14) — see `./timeline.ts`'s own doc comment. */
+  timeline: TimelineState;
 }
 
 export interface ViewerStateContextValue {
@@ -205,6 +208,15 @@ function initialViewerState(): ViewerState {
       againstAntennaId: decoded.compare.againstAntennaId ?? DEFAULT_COMPARE_STATE.againstAntennaId,
       againstBandId: decoded.compare.againstBandId ?? DEFAULT_COMPARE_STATE.againstBandId,
       againstAtMs: decoded.compare.againstAtMs ?? DEFAULT_COMPARE_STATE.againstAtMs,
+    },
+    // Same "each field its own `??` fallback" contract as globeToggles/
+    // rayControls/compare above (phase 14, F11.1) -- decoded.timeline
+    // always has every key present (possibly `undefined`).
+    timeline: {
+      referenceDistanceKm:
+        decoded.timeline.referenceDistanceKm ?? DEFAULT_TIMELINE_STATE.referenceDistanceKm,
+      referenceBearingDeg:
+        decoded.timeline.referenceBearingDeg ?? DEFAULT_TIMELINE_STATE.referenceBearingDeg,
     },
   };
 }

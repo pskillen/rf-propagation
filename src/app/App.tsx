@@ -15,12 +15,14 @@ import { ViewerStateProvider, useViewerState } from './state/viewerState.tsx';
 import { DEFAULT_GLOBE_TOGGLES } from './state/globeToggles.ts';
 import { DEFAULT_PLAYBACK } from './state/playback.ts';
 import { DEFAULT_RAY_CONTROLS } from './state/rayControls.ts';
+import { DEFAULT_TIMELINE_STATE } from './state/timeline.ts';
 import { DEFAULT_COMPARE_STATE } from '@core/domain/propagation/compareScenario';
 import { useConditions } from './hooks/useConditions.ts';
 import { conditionsUrlStateToInitialTime } from './lib/urlState/fields/conditions.ts';
 import { useViewerUrlState } from './hooks/useViewerUrlState.ts';
 import { DEFAULT_BAND_ID, DEFAULT_VIEWER_URL_STATE } from './lib/urlState/types.ts';
 import AnswerSurfaceRoute from './routes/AnswerSurfaceRoute.tsx';
+import type { ShellOutletContext } from './routes/shellOutletContext.ts';
 import PathPage from './routes/path/PathPage.tsx';
 import TimelinePage from './routes/timeline/TimelinePage.tsx';
 import ExplorePage from './routes/explore/ExplorePage.tsx';
@@ -73,6 +75,7 @@ function Shell() {
       },
       playback: { ...DEFAULT_PLAYBACK },
       compare: { ...DEFAULT_COMPARE_STATE },
+      timeline: { ...DEFAULT_TIMELINE_STATE },
     });
     goLive();
     setResetNonce((n) => n + 1);
@@ -103,7 +106,8 @@ function Shell() {
         />
       }
     >
-      <Outlet />
+      {/* Timeline (phase 14) reads this via useOutletContext<ShellOutletContext>() -- see routes/shellOutletContext.ts's own doc comment for why. */}
+      <Outlet context={{ atMs, liveNow, scrubTo } satisfies ShellOutletContext} />
     </AppChrome>
   );
 }

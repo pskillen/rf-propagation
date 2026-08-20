@@ -66,12 +66,16 @@ loading.
 | `globe`               | `GlobeUrlState`                                             | Phase 9                  | [`fields/globe.ts`](../../../src/app/lib/urlState/fields/globe.ts)                                                                             |
 | `playback`            | `PlaybackUrlState` (`unrealismUnlocked` only)               | Phase 10 (Slice 4, F7.4) | [`fields/playback.ts`](../../../src/app/lib/urlState/fields/playback.ts)                                                                       |
 | `compare`             | `CompareUrlState` (`cmp`/`cant`/`cband`/`cat`)              | Phase 12                 | [`fields/compare.ts`](../../../src/app/lib/urlState/fields/compare.ts)                                                                         |
+| `timeline`            | `TimelineUrlState` (`trk`/`trb`)                            | Phase 14                 | [`fields/timeline.ts`](../../../src/app/lib/urlState/fields/timeline.ts)                                                                       |
 
 `playback.playing`/`speedMultiplier` deliberately never round-trip
 (playback state is explicitly never persisted — see
 [playground-controls.md](playground-controls.md)). `compare` (phase 12)
-was the last remaining field from the product doc set's UX/IA state
-model; every field is now registered.
+was the last remaining field from the product doc set's UX/IA
+_documented_ state model; `timeline` (phase 14) is a field the design
+docs never specified at all — Timeline's own reference distance/bearing,
+needed only when no target is set — added by that phase's own plan file,
+not a projection from `ux-and-ia.md §6`.
 
 Phase 10 (Slice 4, F7.4) is also the first phase to build a mapping from
 the FULL `ViewerState` into `ViewerUrlState` (`viewerStateToUrlState`,
