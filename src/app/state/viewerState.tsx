@@ -15,12 +15,16 @@ import { DEFAULT_RAY_CONTROLS, type RayControlsState } from './rayControls.ts';
 
 /**
  * `ViewerState.target`'s source — how the operator set the current target.
- * Only `'map-click'` exists yet (Reach's Slice 5, phase 8); Path's own
- * target picker (phase 13, F5.5's own cross-phase note) adds
- * locator/coordinates/place-name entry as additional source values on top
- * of this, not a replacement for it.
+ * `'map-click'` is Reach's own click-to-target (Slice 5, phase 8);
+ * `'coordinates'` | `'locator'` | `'address'` are Path's own target
+ * picker's three entry modes (phase 13, F10.1); `'map'` | `'globe'` are a
+ * draggable target marker committed on either surface's map/globe (phase
+ * 13, F10.1's "draggable on both map and globe" AC) — distinct from
+ * `'map-click'` since a drag-commit and a plain click are different
+ * gestures worth telling apart in principle, even though nothing in this
+ * phase currently branches on the difference.
  */
-export type TargetSource = 'map-click';
+export type TargetSource = 'map-click' | 'coordinates' | 'locator' | 'address' | 'map' | 'globe';
 
 /** A recorded target — `ViewerState.target === null` means Reach (no target); non-null means Path (FR-14). */
 export interface Target {
