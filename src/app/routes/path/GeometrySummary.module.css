@@ -1,0 +1,23 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.line {
+  margin: 0;
+}
+
+.shortfall {
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+  background: rgba(250, 176, 5, 0.15);
+  color: #966002;
+}
+
+.ok {
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+  background: rgba(64, 192, 87, 0.12);
+  color: #2b8a3e;
+}
