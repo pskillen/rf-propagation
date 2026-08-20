@@ -1,0 +1,24 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  min-width: 0;
+  min-height: 0;
+}
+
+.label {
+  font-weight: 600;
+  font-size: 0.9375rem;
+  margin: 0;
+}
+
+.summary {
+  font-size: 0.8125rem;
+  color: var(--mantine-color-dimmed);
+  margin: 0;
+}
+
+.mapWrap {
+  flex: 1;
+  min-height: 260px;
+}

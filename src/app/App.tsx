@@ -15,6 +15,7 @@ import { ViewerStateProvider, useViewerState } from './state/viewerState.tsx';
 import { DEFAULT_GLOBE_TOGGLES } from './state/globeToggles.ts';
 import { DEFAULT_PLAYBACK } from './state/playback.ts';
 import { DEFAULT_RAY_CONTROLS } from './state/rayControls.ts';
+import { DEFAULT_COMPARE_STATE } from '@core/domain/propagation/compareScenario';
 import { useConditions } from './hooks/useConditions.ts';
 import { conditionsUrlStateToInitialTime } from './lib/urlState/fields/conditions.ts';
 import { useViewerUrlState } from './hooks/useViewerUrlState.ts';
@@ -23,6 +24,7 @@ import ReachPage from './routes/reach/ReachPage.tsx';
 import PathPage from './routes/path/PathPage.tsx';
 import TimelinePage from './routes/timeline/TimelinePage.tsx';
 import ExplorePage from './routes/explore/ExplorePage.tsx';
+import ComparePage from './routes/compare/ComparePage.tsx';
 
 function Shell() {
   // The Conditions clock (F7.1, phase 10) -- instantiated ONCE here,
@@ -70,6 +72,7 @@ function Shell() {
         rayControls: { ...DEFAULT_RAY_CONTROLS },
       },
       playback: { ...DEFAULT_PLAYBACK },
+      compare: { ...DEFAULT_COMPARE_STATE },
     });
     goLive();
     setResetNonce((n) => n + 1);
@@ -113,6 +116,7 @@ const router = createBrowserRouter([
       { path: '/path', element: <PathPage /> },
       { path: '/timeline', element: <TimelinePage /> },
       { path: '/explore', element: <ExplorePage /> },
+      { path: '/compare', element: <ComparePage /> },
     ],
   },
 ]);

@@ -4,6 +4,7 @@ import { DEFAULT_CONDITIONS } from '@core/domain/conditions/defaults';
 import { DEFAULT_GLOBE_TOGGLES } from '../../state/globeToggles.ts';
 import { DEFAULT_PLAYBACK } from '../../state/playback.ts';
 import { DEFAULT_RAY_CONTROLS } from '../../state/rayControls.ts';
+import { DEFAULT_COMPARE_STATE } from '@core/domain/propagation/compareScenario';
 import type { ViewerState } from '../../state/viewerState.tsx';
 import { encodeViewerUrlState } from './codec.ts';
 import { viewerStateToUrlState } from './fromViewerState.ts';
@@ -18,6 +19,7 @@ function baseViewerState(): ViewerState {
     target: null,
     display: { globeToggles: DEFAULT_GLOBE_TOGGLES, rayControls: DEFAULT_RAY_CONTROLS },
     playback: DEFAULT_PLAYBACK,
+    compare: DEFAULT_COMPARE_STATE,
   };
 }
 

@@ -5,6 +5,7 @@ import { coordsToLocator } from '@core/domain/maidenhead';
 import type { Conditions } from '@core/domain/conditions/types';
 import { DEFAULT_CONDITIONS } from '@core/domain/conditions/defaults';
 import { bandMidpointMhz } from '@core/domain/bandCatalog';
+import { DEFAULT_COMPARE_STATE, type CompareState } from '@core/domain/propagation/compareScenario';
 import { loadStation } from '@integrations/station/persistence';
 import { decodeViewerUrlState } from '../lib/urlState/codec.ts';
 import type { StationUrlState, SurfaceId } from '../lib/urlState/types.ts';
@@ -97,6 +98,8 @@ export interface ViewerState {
   display: DisplayState;
   /** Transport-control play/pause/speed and the realism-unlock flag (F7.1/F7.3, phase 10). */
   playback: PlaybackState;
+  /** Compare's own state (F9.1, phase 12) — see `@core/domain/propagation/compareScenario`'s own doc comment for why this type lives in `core` rather than alongside `GlobeToggles`/`RayControlsState`. */
+  compare: CompareState;
 }
 
 export interface ViewerStateContextValue {
@@ -187,6 +190,17 @@ function initialViewerState(): ViewerState {
     playback: {
       ...DEFAULT_PLAYBACK,
       unrealismUnlocked: decoded.playback.unrealismUnlocked ?? DEFAULT_PLAYBACK.unrealismUnlocked,
+    },
+    // Same "each field its own `??` fallback" contract as globeToggles/
+    // rayControls above (phase 12, F9.1) -- decoded.compare always has
+    // every key present (possibly `undefined`), so a blind spread would
+    // still clobber DEFAULT_COMPARE_STATE's real values with those
+    // `undefined`s.
+    compare: {
+      enabled: decoded.compare.enabled ?? DEFAULT_COMPARE_STATE.enabled,
+      againstAntennaId: decoded.compare.againstAntennaId ?? DEFAULT_COMPARE_STATE.againstAntennaId,
+      againstBandId: decoded.compare.againstBandId ?? DEFAULT_COMPARE_STATE.againstBandId,
+      againstAtMs: decoded.compare.againstAtMs ?? DEFAULT_COMPARE_STATE.againstAtMs,
     },
   };
 }

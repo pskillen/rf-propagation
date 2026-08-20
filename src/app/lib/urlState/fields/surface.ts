@@ -7,6 +7,8 @@ export const surfaceFieldCodec: UrlStateFieldCodec<'surface'> = {
   },
   decode(params, defaults) {
     const raw = params.get('s');
-    return raw === 'path' || raw === 'timeline' || raw === 'explore' ? raw : defaults.surface;
+    return raw === 'path' || raw === 'timeline' || raw === 'explore' || raw === 'compare'
+      ? raw
+      : defaults.surface;
   },
 };
