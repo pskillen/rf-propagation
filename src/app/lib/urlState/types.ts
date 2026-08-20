@@ -2,7 +2,7 @@ import type { NoiseEnvironment } from '@core/domain/propagation/noise';
 import type { GroundType } from '@core/domain/propagation/losses';
 import type { ConditionsDriverKind } from '@core/domain/conditions/types';
 
-export type SurfaceId = 'reach' | 'path' | 'timeline' | 'explore';
+export type SurfaceId = 'reach' | 'path' | 'timeline' | 'explore' | 'compare';
 
 /**
  * The URL's lossy view of `Station` (`@core/domain/station/types`): QTH
@@ -113,13 +113,26 @@ export interface PlaybackUrlState {
 }
 
 /**
+ * The URL's lossy view of `ViewerState.compare` (`@core/domain/propagation/
+ * compareScenario`'s `CompareState`, F9.1, phase 12). Every field an
+ * optional override, same "absent means the app's own current/default
+ * value" contract as every other field codec here.
+ */
+export interface CompareUrlState {
+  enabled?: boolean;
+  againstAntennaId?: string;
+  againstBandId?: string;
+  againstAtMs?: number;
+}
+
+/**
  * Grows by one optional-in-spirit field per phase (phase 6 adds `station`,
  * phase 7 adds `conditions` and `bandId`, phase 8 adds `target`, phase 9
- * adds `globe`, phase 10 adds `playback`, etc. — see ux-and-ia.md §6 for
- * the eventual full shape). Each addition is a new property on this
- * interface plus a new field-codec module registered in codec.ts's
- * FIELD_CODECS array — never a change to an existing property or an
- * existing field-codec's logic.
+ * adds `globe`, phase 10 adds `playback`, phase 12 adds `compare`, etc. —
+ * see ux-and-ia.md §6 for the eventual full shape). Each addition is a new
+ * property on this interface plus a new field-codec module registered in
+ * codec.ts's FIELD_CODECS array — never a change to an existing property
+ * or an existing field-codec's logic.
  */
 export interface ViewerUrlState {
   surface: SurfaceId;
@@ -130,6 +143,7 @@ export interface ViewerUrlState {
   globe: GlobeUrlState;
   playback: PlaybackUrlState;
   explore: ExploreUrlState;
+  compare: CompareUrlState;
 }
 
 export const URL_STATE_VERSION = 1;
@@ -150,4 +164,5 @@ export const DEFAULT_VIEWER_URL_STATE: ViewerUrlState = {
   globe: {},
   playback: {},
   explore: {},
+  compare: {},
 };

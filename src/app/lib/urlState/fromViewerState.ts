@@ -14,6 +14,7 @@
  */
 import type { Station } from '@core/domain/station/types';
 import type { Conditions } from '@core/domain/conditions/types';
+import { DEFAULT_COMPARE_STATE } from '@core/domain/propagation/compareScenario';
 import type { ViewerState } from '../../state/viewerState.tsx';
 import { DEFAULT_GLOBE_TOGGLES } from '../../state/globeToggles.ts';
 import { DEFAULT_PLAYBACK } from '../../state/playback.ts';
@@ -118,5 +119,12 @@ export function viewerStateToUrlState(state: ViewerState): ViewerUrlState {
         soloLayerId: rc.soloLayerId,
       };
     })(),
+    compare: {
+      enabled:
+        state.compare.enabled !== DEFAULT_COMPARE_STATE.enabled ? state.compare.enabled : undefined,
+      againstAntennaId: state.compare.againstAntennaId,
+      againstBandId: state.compare.againstBandId,
+      againstAtMs: state.compare.againstAtMs,
+    },
   };
 }

@@ -7,7 +7,7 @@ import {
   type ViewerUrlState,
 } from './types.ts';
 
-const ALL_SURFACES: readonly SurfaceId[] = ['reach', 'path', 'timeline', 'explore'];
+const ALL_SURFACES: readonly SurfaceId[] = ['reach', 'path', 'timeline', 'explore', 'compare'];
 
 const EMPTY_CONDITIONS: ViewerUrlState['conditions'] = {
   t: undefined,
@@ -41,6 +41,13 @@ const EMPTY_EXPLORE: ViewerUrlState['explore'] = {
   soloLayerId: undefined,
 };
 
+const EMPTY_COMPARE: ViewerUrlState['compare'] = {
+  enabled: undefined,
+  againstAntennaId: undefined,
+  againstBandId: undefined,
+  againstAtMs: undefined,
+};
+
 describe('viewer URL state codec', () => {
   it.each(ALL_SURFACES)('round-trips surface=%s', (surface) => {
     const state: ViewerUrlState = {
@@ -51,6 +58,7 @@ describe('viewer URL state codec', () => {
       globe: {},
       playback: {},
       explore: {},
+      compare: {},
     };
     const roundTripped = decodeViewerUrlState(encodeViewerUrlState(state));
     expect(roundTripped).toEqual({
@@ -59,6 +67,7 @@ describe('viewer URL state codec', () => {
       globe: EMPTY_GLOBE,
       playback: EMPTY_PLAYBACK,
       explore: EMPTY_EXPLORE,
+      compare: EMPTY_COMPARE,
     });
   });
 
@@ -82,6 +91,7 @@ describe('viewer URL state codec', () => {
       globe: EMPTY_GLOBE,
       playback: EMPTY_PLAYBACK,
       explore: EMPTY_EXPLORE,
+      compare: EMPTY_COMPARE,
     });
   });
 
@@ -99,6 +109,7 @@ describe('viewer URL state codec', () => {
       globe: {},
       playback: {},
       explore: {},
+      compare: {},
     });
     expect(params.has('s')).toBe(false);
     expect(params.get('v')).toBe('1');
@@ -113,6 +124,7 @@ describe('viewer URL state codec', () => {
       globe: {},
       playback: {},
       explore: {},
+      compare: {},
     });
     expect(params.get('s')).toBe('timeline');
   });
@@ -126,6 +138,7 @@ describe('viewer URL state codec', () => {
       globe: {},
       playback: {},
       explore: {},
+      compare: {},
     };
     const roundTripped = decodeViewerUrlState(encodeViewerUrlState(state));
     expect(roundTripped).toEqual({
@@ -136,6 +149,7 @@ describe('viewer URL state codec', () => {
       globe: EMPTY_GLOBE,
       playback: EMPTY_PLAYBACK,
       explore: EMPTY_EXPLORE,
+      compare: EMPTY_COMPARE,
     });
   });
 
@@ -148,6 +162,7 @@ describe('viewer URL state codec', () => {
       globe: { exaggerationFactor: 3, mapMode: 'globe' },
       playback: {},
       explore: {},
+      compare: {},
     };
     const roundTripped = decodeViewerUrlState(encodeViewerUrlState(state));
     expect(roundTripped).toEqual({
@@ -162,6 +177,7 @@ describe('viewer URL state codec', () => {
       },
       playback: EMPTY_PLAYBACK,
       explore: EMPTY_EXPLORE,
+      compare: EMPTY_COMPARE,
     });
   });
 
@@ -174,6 +190,7 @@ describe('viewer URL state codec', () => {
       globe: {},
       playback: { unrealismUnlocked: true },
       explore: {},
+      compare: {},
     };
     const roundTripped = decodeViewerUrlState(encodeViewerUrlState(state));
     expect(roundTripped).toEqual({
@@ -184,6 +201,7 @@ describe('viewer URL state codec', () => {
       globe: EMPTY_GLOBE,
       playback: { unrealismUnlocked: true },
       explore: EMPTY_EXPLORE,
+      compare: EMPTY_COMPARE,
     });
   });
 
@@ -211,6 +229,7 @@ describe('viewer URL state codec', () => {
         colourBy: 'layer',
         soloLayerId: 'F2',
       },
+      compare: {},
     };
     const roundTripped = decodeViewerUrlState(encodeViewerUrlState(state));
     expect(roundTripped).toEqual({
@@ -221,6 +240,7 @@ describe('viewer URL state codec', () => {
       globe: EMPTY_GLOBE,
       playback: EMPTY_PLAYBACK,
       explore: state.explore,
+      compare: EMPTY_COMPARE,
     });
   });
 
@@ -228,5 +248,40 @@ describe('viewer URL state codec', () => {
     expect(() => decodeViewerUrlState(new URLSearchParams('v=1&s=path'))).not.toThrow();
     const decoded = decodeViewerUrlState(new URLSearchParams('v=1&s=path'));
     expect(decoded.explore).toEqual(EMPTY_EXPLORE);
+  });
+
+  it('round-trips a compare override (phase 12, Slice 1) alongside other fields', () => {
+    const state: ViewerUrlState = {
+      surface: 'compare',
+      station: {},
+      conditions: {},
+      bandId: DEFAULT_BAND_ID,
+      globe: {},
+      playback: {},
+      explore: {},
+      compare: {
+        enabled: true,
+        againstAntennaId: 'ant-2',
+        againstBandId: '20m',
+        againstAtMs: 1_700_000_000_000,
+      },
+    };
+    const roundTripped = decodeViewerUrlState(encodeViewerUrlState(state));
+    expect(roundTripped).toEqual({
+      surface: 'compare',
+      station: {},
+      conditions: EMPTY_CONDITIONS,
+      bandId: DEFAULT_BAND_ID,
+      globe: EMPTY_GLOBE,
+      playback: EMPTY_PLAYBACK,
+      explore: EMPTY_EXPLORE,
+      compare: state.compare,
+    });
+  });
+
+  it('a URL missing the compare param entirely degrades to the default, not a throw', () => {
+    expect(() => decodeViewerUrlState(new URLSearchParams('v=1&s=path'))).not.toThrow();
+    const decoded = decodeViewerUrlState(new URLSearchParams('v=1&s=path'));
+    expect(decoded.compare).toEqual(EMPTY_COMPARE);
   });
 });
