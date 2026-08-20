@@ -135,6 +135,16 @@ export default function ReachPage() {
     setState((prev) => ({ ...prev, target: null }));
   }, [setState]);
 
+  // Draggable target marker (phase 13, F10.1's "draggable on both map and
+  // globe" AC) -- a drag-commit, distinct from `handleMapClick`'s own
+  // plain-click gesture, per `TargetSource`'s own doc comment.
+  const handleTargetDragEnd = useCallback(
+    (lat: number, lon: number) => {
+      setState((prev) => ({ ...prev, target: { lat, lon, label: undefined, source: 'map' } }));
+    },
+    [setState],
+  );
+
   // Phase 9, Slice 5 (F6.5) -- the whole ViewerState.display.globeToggles
   // object round-trips through the URL codec, so writes here go through
   // the same setState path every other ViewerState sub-object uses.
@@ -260,6 +270,7 @@ export default function ReachPage() {
             coverageStation={coverageStation}
             target={target}
             onMapClick={handleMapClick}
+            onTargetDragEnd={handleTargetDragEnd}
             atMs={throttledConditions.atMs}
             showTerminator={showTerminator}
           />

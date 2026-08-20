@@ -20,7 +20,7 @@ import { useConditions } from './hooks/useConditions.ts';
 import { conditionsUrlStateToInitialTime } from './lib/urlState/fields/conditions.ts';
 import { useViewerUrlState } from './hooks/useViewerUrlState.ts';
 import { DEFAULT_BAND_ID, DEFAULT_VIEWER_URL_STATE } from './lib/urlState/types.ts';
-import ReachPage from './routes/reach/ReachPage.tsx';
+import AnswerSurfaceRoute from './routes/AnswerSurfaceRoute.tsx';
 import PathPage from './routes/path/PathPage.tsx';
 import TimelinePage from './routes/timeline/TimelinePage.tsx';
 import ExplorePage from './routes/explore/ExplorePage.tsx';
@@ -112,7 +112,7 @@ const router = createBrowserRouter([
   {
     element: <Shell />,
     children: [
-      { path: '/', element: <ReachPage /> },
+      { path: '/', element: <AnswerSurfaceRoute /> },
       { path: '/path', element: <PathPage /> },
       { path: '/timeline', element: <TimelinePage /> },
       { path: '/explore', element: <ExplorePage /> },

@@ -128,6 +128,13 @@ export interface ReachMapProps {
   /** Fires on a map click/tap (not drag) -- sets the target (Slice 5). */
   onMapClick: (lat: number, lon: number) => void;
   /**
+   * Fires on the target marker's own `dragend` (phase 13, F10.1's
+   * "draggable on both map and globe" AC) -- optional so existing
+   * callers/tests that don't need a draggable target marker can omit it;
+   * the marker itself is only rendered `draggable` when this is provided.
+   */
+  onTargetDragEnd?: (lat: number, lon: number) => void;
+  /**
    * Conditions' current instant (fix/reach-directionality-antenna-
    * greyline, Slice 5) -- drives the terminator line/sun marker's
    * position. Optional so existing callers/tests that don't care about
@@ -152,6 +159,7 @@ export default function ReachMap({
   coverageStation,
   target,
   onMapClick,
+  onTargetDragEnd,
   atMs,
   showTerminator,
   markerRef,
@@ -192,7 +200,24 @@ export default function ReachMap({
             },
           }}
         />
-        {target ? <Marker position={[target.lat, target.lon]} icon={TARGET_ICON} /> : null}
+        {target ? (
+          <Marker
+            position={[target.lat, target.lon]}
+            icon={TARGET_ICON}
+            draggable={onTargetDragEnd != null}
+            eventHandlers={
+              onTargetDragEnd
+                ? {
+                    dragend(event) {
+                      const marker = event.target as L.Marker;
+                      const { lat, lng } = marker.getLatLng();
+                      onTargetDragEnd(lat, lng);
+                    },
+                  }
+                : undefined
+            }
+          />
+        ) : null}
         <ClickToTarget onMapClick={onMapClick} />
         <MapResizeFix />
       </MapContainer>
