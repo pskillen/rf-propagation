@@ -42,9 +42,18 @@ function formatReliabilityPct(reliability: number): string {
 export interface VerdictTableProps {
   rows: VerdictRow[];
   target: Target;
+  /** The band whose row `GeometrySummary` is currently tracking (Slice 3) — highlighted, not required. */
+  selectedBandId?: string;
+  /** Fires when the operator picks a row to drive the geometry summary. */
+  onSelectRow?: (bandId: string) => void;
 }
 
-export default function VerdictTable({ rows, target }: VerdictTableProps) {
+export default function VerdictTable({
+  rows,
+  target,
+  selectedBandId,
+  onSelectRow,
+}: VerdictTableProps) {
   if (rows.length === 0) {
     return <p>No bands to evaluate — check the Station&apos;s licence class or antenna set-up.</p>;
   }
@@ -53,8 +62,15 @@ export default function VerdictTable({ rows, target }: VerdictTableProps) {
     <ul className={classes.root} aria-label="Band by band verdict, ranked best-first">
       {rows.map((row) => {
         const bandLabel = UK_AMATEUR_BANDS.find((b) => b.id === row.bandId)?.label ?? row.bandId;
+        const selected = row.bandId === selectedBandId;
         return (
-          <li key={row.bandId} className={classes.row}>
+          <li
+            key={row.bandId}
+            className={`${classes.row} ${selected ? classes.selected : ''}`}
+            onClick={onSelectRow ? () => onSelectRow(row.bandId) : undefined}
+            role={onSelectRow ? 'button' : undefined}
+            tabIndex={onSelectRow ? 0 : undefined}
+          >
             <span className={classes.bandLabel}>{bandLabel}</span>
             {row.hopSolveResult.kind === 'unreachable' ? (
               <span className={classes.unreachable}>

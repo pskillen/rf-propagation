@@ -17,6 +17,10 @@
   background: var(--v2-surface-raised, rgba(255, 255, 255, 0.04));
 }
 
+.selected {
+  outline: 2px solid var(--v2-color-accent, #4263eb);
+}
+
 .bandLabel {
   font-weight: 700;
   min-width: 3.5rem;
