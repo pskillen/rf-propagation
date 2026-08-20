@@ -87,6 +87,15 @@ range from the station (`bearingDistance.ts`'s `initialBearingDeg`/
 produce) per F3.3's own acceptance criterion that each surface adds its
 own state to the codec as part of its own ticket.
 
+Phase 13 (Path) completes this stub: setting `target` now switches the
+answer surface to the full Path view (`activeAnswerSurface`) instead of
+just showing `TargetPanel` in place — see
+[../path/reach-path-switching.md](../path/reach-path-switching.md).
+`TargetPanel` and the map's own target-marker drag support stay in the
+code (harmless, and useful if a future direct Reach-with-a-target view
+is ever added) but are effectively unreachable in the current UX, since
+`ReachPage` unmounts the instant `target` becomes non-null.
+
 ## Open items
 
 - No licence-class filtering: F5.4 says out-of-class bands shouldn't win
