@@ -126,6 +126,17 @@ export interface CompareUrlState {
 }
 
 /**
+ * The URL's lossy view of `ViewerState.timeline` (`@app/state/timeline`,
+ * F11.1, phase 14). Every field an optional override, same "absent means
+ * the app's own current/default value" contract as every other field
+ * codec here.
+ */
+export interface TimelineUrlState {
+  referenceDistanceKm?: number;
+  referenceBearingDeg?: number;
+}
+
+/**
  * Grows by one optional-in-spirit field per phase (phase 6 adds `station`,
  * phase 7 adds `conditions` and `bandId`, phase 8 adds `target`, phase 9
  * adds `globe`, phase 10 adds `playback`, phase 12 adds `compare`, etc. —
@@ -144,6 +155,7 @@ export interface ViewerUrlState {
   playback: PlaybackUrlState;
   explore: ExploreUrlState;
   compare: CompareUrlState;
+  timeline: TimelineUrlState;
 }
 
 export const URL_STATE_VERSION = 1;
@@ -165,4 +177,5 @@ export const DEFAULT_VIEWER_URL_STATE: ViewerUrlState = {
   playback: {},
   explore: {},
   compare: {},
+  timeline: {},
 };

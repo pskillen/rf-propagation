@@ -48,7 +48,17 @@ const REFERENCE_BANDWIDTH_HZ = 2400;
 const GEOMAG_POLE_LAT_DEG = 80.7;
 const GEOMAG_POLE_LON_DEG = -72.7;
 
-function approximateGeomagLatDeg(latDeg: number, lonDeg: number): number {
+/**
+ * Exported (phase 14, Timeline) so `useTimelineGrid.ts` can feed the same
+ * geomagnetic-latitude approximation into `computeTimelineGrid`'s own
+ * `geomagLatDeg` input, rather than a second copy of this dipole-tilt
+ * formula — Timeline calls `layerStates` per (band, hour) internally
+ * (`computeTimelineGrid` itself, not `computeLayerStates` above, since it
+ * needs a fresh `layerStates` call per swept hour's own solar zenith, not
+ * one snapshot at `conditions.atMs`), but the geomagnetic latitude input
+ * is time-invariant for a given station, so it's still computed once here.
+ */
+export function approximateGeomagLatDeg(latDeg: number, lonDeg: number): number {
   const toRad = Math.PI / 180;
   const latPoleRad = GEOMAG_POLE_LAT_DEG * toRad;
   const latRad = latDeg * toRad;
