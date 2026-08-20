@@ -2,8 +2,29 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import DesignSystemV2Provider from '../v2/DesignSystemV2Provider.tsx';
 import { DEFAULT_STATION } from '@core/domain/station/defaults';
-import { ViewerStateProvider } from '../../state/viewerState.tsx';
+import { ViewerStateProvider, useViewerState } from '../../state/viewerState.tsx';
 import StationBar from './StationBar.tsx';
+
+// F7.3 (phase 10's Slice 3) lives on `ViewerState.playback.unrealismUnlocked`,
+// which only `ConditionsBar`'s own toggle writes in the real app -- this
+// probe stands in for that toggle so StationBar's own unlocked-bounds/
+// clamp-on-lock behaviour can be exercised in isolation.
+function UnlockProbe() {
+  const { state, setState } = useViewerState();
+  return (
+    <button
+      type="button"
+      onClick={() =>
+        setState((prev) => ({
+          ...prev,
+          playback: { ...prev.playback, unrealismUnlocked: !prev.playback.unrealismUnlocked },
+        }))
+      }
+    >
+      unlocked: {String(state.playback.unrealismUnlocked)}
+    </button>
+  );
+}
 
 vi.mock('./QthMap.tsx', () => ({
   default: () => <div data-testid="qth-map-stub" />,
@@ -17,6 +38,17 @@ function renderBar() {
   return render(
     <ViewerStateProvider>
       <DesignSystemV2Provider>
+        <StationBar />
+      </DesignSystemV2Provider>
+    </ViewerStateProvider>,
+  );
+}
+
+function renderBarWithUnlockProbe() {
+  return render(
+    <ViewerStateProvider>
+      <DesignSystemV2Provider>
+        <UnlockProbe />
         <StationBar />
       </DesignSystemV2Provider>
     </ViewerStateProvider>,
@@ -152,6 +184,37 @@ describe('StationBar', () => {
       const draftPath = previewPath();
       expect(draftPath).toBeTruthy();
       expect(draftPath).not.toBe(initialPath);
+    });
+  });
+
+  describe('realism unlock (F7.3)', () => {
+    it('toggling off clamps an out-of-range TX power back into the realistic range', () => {
+      renderBarWithUnlockProbe();
+      fireEvent.click(screen.getByRole('button', { name: /unlocked: false/ }));
+
+      const input = screen.getByLabelText('TX power (W)');
+      fireEvent.focus(input);
+      fireEvent.change(input, { target: { value: '5000' } });
+      fireEvent.blur(input);
+      expect(screen.getByText(/5000 W/)).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: /unlocked: true/ }));
+      expect(screen.getByText(/1500 W/)).toBeInTheDocument();
+    });
+
+    it('toggling off clamps an out-of-range active-antenna height back into the realistic range', () => {
+      renderBarWithUnlockProbe();
+      fireEvent.click(screen.getByRole('button', { name: /unlocked: false/ }));
+      fireEvent.click(screen.getByRole('button', { name: 'Edit station' }));
+
+      fireEvent.change(screen.getByLabelText('Height above ground (m)'), {
+        target: { value: '100' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+      expect(screen.getByText(/@ 100 m/)).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: /unlocked: true/ }));
+      expect(screen.getByText(/@ 30 m/)).toBeInTheDocument();
     });
   });
 });

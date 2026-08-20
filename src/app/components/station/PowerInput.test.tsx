@@ -7,10 +7,10 @@ beforeEach(() => {
   localStorage.clear();
 });
 
-function renderInput(powerW = 100, onStationChange = vi.fn()) {
+function renderInput(powerW = 100, onStationChange = vi.fn(), unlocked = false) {
   render(
     <DesignSystemV2Provider>
-      <PowerInput powerW={powerW} onStationChange={onStationChange} />
+      <PowerInput powerW={powerW} onStationChange={onStationChange} unlocked={unlocked} />
     </DesignSystemV2Provider>,
   );
   return onStationChange;
@@ -66,5 +66,28 @@ describe('PowerInput', () => {
     fireEvent.focus(input);
     fireEvent.blur(input);
     expect(onStationChange).not.toHaveBeenCalled();
+  });
+
+  it('locked, clamps a value above 1500 W to 1500 on commit', () => {
+    const onStationChange = renderInput(100);
+    const input = screen.getByLabelText('TX power (W)');
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: '5000' } });
+    fireEvent.blur(input);
+    expect(onStationChange.mock.calls[0][0].powerW).toBe(1500);
+  });
+
+  it('unlocked, accepts a value up to 100,000 W', () => {
+    const onStationChange = renderInput(100, vi.fn(), true);
+    const input = screen.getByLabelText('TX power (W)');
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: '5000' } });
+    fireEvent.blur(input);
+    expect(onStationChange.mock.calls[0][0].powerW).toBe(5000);
+  });
+
+  it('marks the field out-of-bounds when the current value is above 1500 W, regardless of the toggle', () => {
+    renderInput(5000, vi.fn(), true);
+    expect(screen.getByText('Outside the realistic amateur range')).toBeInTheDocument();
   });
 });

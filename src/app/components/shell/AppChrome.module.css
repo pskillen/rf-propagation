@@ -40,12 +40,14 @@
 }
 
 .stationBar,
-.conditionsBar {
+.conditionsBar,
+.transportControl {
   min-height: 0;
 }
 
 .stationBar:empty,
-.conditionsBar:empty {
+.conditionsBar:empty,
+.transportControl:empty {
   display: none;
 }
 

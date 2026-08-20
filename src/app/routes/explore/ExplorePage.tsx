@@ -1,10 +1,239 @@
+// Explore — the "what's going on up there" surface (F8, phase 11). Slice 1:
+// the labelled vertical cross-section. Slice 2: the illustration ray
+// overlay, rendered on both the cross-section and the globe from a single
+// `generateIllustrationRays` call. Later slices (filter/colour/solo, term
+// definitions, the link-budget breakdown) extend this file's `controls`/
+// `canvas` in place, not by replacing its overall shape.
+import { lazy, Suspense, useMemo } from 'react';
+import { destinationPoint } from '@core/domain/propagation/greatCircle';
+import { solarZenithAngleDeg } from '@core/domain/propagation/solarZenithAngle';
+import { solveHopsForDistance, type SolveHopsContext } from '@core/domain/propagation/multiHop';
 import SurfaceLayout from '../../components/layout/SurfaceLayout.tsx';
+import { Panel, SegmentedControl, type SegmentedControlOption } from '../../components/v2/index.ts';
+import GlobeDisplayPanel from '../../components/HfPropagationGlobe/GlobeDisplayPanel.tsx';
+import type { GlobeToggles } from '../../state/globeToggles.ts';
+import type { RayControlsState } from '../../state/rayControls.ts';
+import {
+  computeLayerStates,
+  buildCoverageGridInput,
+} from '../../components/reach/buildCoverageGridInput.ts';
+import { haversineDistanceKm } from '../../lib/geo/bearingDistance.ts';
+import { useThrottledConditions } from '../../hooks/useThrottledConditions.ts';
+import { useViewerState } from '../../state/viewerState.tsx';
+import RayOverlayControls from './RayOverlayControls.tsx';
+import VerticalCrossSection from './VerticalCrossSection.tsx';
+import { crossSectionLayerBands } from './crossSectionLayerBands.ts';
+import { currentBearingDeg, selectPrimaryRay, useExploreRays } from './useExploreRays.ts';
+import { applyRayVisuals } from './rayVisual.ts';
+import { buildLinkBudgetBreakdown } from './buildBreakdownRows.ts';
+import LinkBudgetBreakdown from './LinkBudgetBreakdown.tsx';
+import classes from './ExplorePage.module.css';
+
+// Lazy-loaded, same as Reach (F6.1's own AC) -- the three.js/react-globe.gl
+// bundle only downloads once the operator switches to the globe view.
+const HfPropagationGlobe = lazy(
+  () => import('../../components/HfPropagationGlobe/HfPropagationGlobe.tsx'),
+);
+
+const VIEW_OPTIONS: SegmentedControlOption<'map' | 'globe'>[] = [
+  { value: 'map', label: 'Cross-section' },
+  { value: 'globe', label: 'Globe' },
+];
+
+/** Default cross-section/fan span (km) when there's no target to derive a real range from. */
+const DEFAULT_EXPLORE_RANGE_KM = 4000;
 
 export default function ExplorePage() {
+  const { state, setState } = useViewerState();
+  const { station, conditions, frequencyMhz, target } = state;
+  const globeToggles = state.display.globeToggles;
+  const rayControls = state.display.rayControls;
+
+  // Same recompute-cadence fix Reach's own coverage/greyline/globe inputs
+  // use (`useThrottledConditions`'s own doc comment) -- Explore's ray
+  // regeneration is no cheaper than Reach's coverage sweep, so it inherits
+  // the same throttle rather than re-deriving the fix.
+  const throttledConditions = useThrottledConditions(conditions);
+
+  const context = useMemo(
+    () => buildCoverageGridInput(station, throttledConditions, frequencyMhz),
+    [station, throttledConditions, frequencyMhz],
+  );
+
+  const layers = useMemo(
+    () => computeLayerStates(station.qth, throttledConditions),
+    [station.qth, throttledConditions],
+  );
+
+  // THE single generateIllustrationRays call this phase's own invariant
+  // demands -- see useExploreRays.ts's own doc comment. Filtering/colouring/
+  // soloing (Slice 3) is a pure transform over its result, never a second
+  // call -- see rayVisual.ts's own invariant note.
+  const rays = useExploreRays(context, rayControls, target);
+  const renderedRays = useMemo(
+    () => applyRayVisuals(rays, rayControls, context),
+    [rays, rayControls, context],
+  );
+  // The globe has no per-path opacity concept (react-globe.gl's pathsData
+  // accessors are colour/dash only) -- a soloed-out ray is hidden there
+  // rather than dimmed, vs. the cross-section's opacity fade. Judgment
+  // call, flagged.
+  const globeRays = useMemo(
+    () => renderedRays.filter((r) => !r.dimmed).map((r) => ({ ray: r.ray, color: r.color })),
+    [renderedRays],
+  );
+
+  const bearingDeg = currentBearingDeg(station.qth, target, rayControls.focusBearingDeg);
+  const primaryRay = useMemo(
+    () => selectPrimaryRay(rays, bearingDeg, rayControls.elevationSpreadDeg),
+    [rays, bearingDeg, rayControls.elevationSpreadDeg],
+  );
+
+  const solarZenithDeg = solarZenithAngleDeg(
+    station.qth.lat,
+    station.qth.lon,
+    throttledConditions.atMs,
+  );
+  const bands = useMemo(
+    () => crossSectionLayerBands(layers, solarZenithDeg),
+    [layers, solarZenithDeg],
+  );
+
+  const targetRangeKm = target
+    ? haversineDistanceKm(
+        { latDeg: station.qth.lat, lonDeg: station.qth.lon },
+        { latDeg: target.lat, lonDeg: target.lon },
+      )
+    : null;
+  const maxRangeKm = targetRangeKm ?? DEFAULT_EXPLORE_RANGE_KM;
+
+  // Slice 5 (F8.5) -- the breakdown panel, rendered whenever a target is
+  // active (arrived at via either door: the surface switch with a target
+  // already set from a prior surface, or an ExplainThisLink click).
+  // `solveHopsForDistance` is the SAME public entry point Path (phase 13)
+  // will use for its own verdict table -- this phase does not add a
+  // second hop-search implementation.
+  //
+  // Judgment call, flagged: `txAntennaGainDbi` here is the active
+  // antenna's flat nominal gain, not an elevation/azimuth-aware figure --
+  // `solveHopsForDistance`'s own `SolveHopsContext` shape (phase 4) takes
+  // a flat number, unlike `CoverageGridInput`'s antenna-aware `txAntenna`
+  // object (Reach's Slice 1 upgrade). Revisiting that shape for
+  // antenna-aware hop-search is a later phase's call, not this one's.
+  const activeAntenna =
+    station.antennas.find((antenna) => antenna.id === station.activeAntennaId) ??
+    station.antennas[0]!;
+
+  const breakdown = useMemo(() => {
+    if (!target || targetRangeKm == null) return { kind: 'none' as const };
+    const solveContext: SolveHopsContext = {
+      ssn: context.ssn,
+      groundType: context.groundType,
+      noiseEnvironment: context.noiseEnvironment,
+      txPowerW: context.txPowerW,
+      txAntennaGainDbi: activeAntenna.gainDbi,
+      rxAntennaGainDbi: context.rxAntennaGainDbi,
+      bandwidthHz: context.bandwidthHz,
+      solarZenithAtMidpointDeg: (hopIndex, hopCount) => {
+        const midDistanceKm = (targetRangeKm * (hopIndex + 0.5)) / hopCount;
+        const midpoint = destinationPoint(
+          { latDeg: station.qth.lat, lonDeg: station.qth.lon },
+          bearingDeg,
+          midDistanceKm,
+        );
+        return solarZenithAngleDeg(midpoint.latDeg, midpoint.lonDeg, throttledConditions.atMs);
+      },
+    };
+    const solved = solveHopsForDistance(targetRangeKm, frequencyMhz, layers, solveContext);
+    if (solved.kind === 'unreachable') return { kind: 'unreachable' as const };
+    return {
+      kind: 'solved' as const,
+      data: buildLinkBudgetBreakdown(solved.solution, {
+        frequencyMhz,
+        ssn: context.ssn,
+        groundType: context.groundType,
+      }),
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `context`/`activeAntenna` are derived fresh per render from `station`/`throttledConditions`/`frequencyMhz`, already covered below.
+  }, [target, targetRangeKm, station, bearingDeg, throttledConditions, frequencyMhz, layers]);
+
+  const handleRayControlsChange = (next: RayControlsState) => {
+    setState((prev) => ({ ...prev, display: { ...prev.display, rayControls: next } }));
+  };
+
+  const handleGlobeTogglesChange = (next: GlobeToggles) => {
+    setState((prev) => ({ ...prev, display: { ...prev.display, globeToggles: next } }));
+  };
+
+  const handleMapModeChange = (mapMode: 'map' | 'globe') => {
+    handleGlobeTogglesChange({ ...globeToggles, mapMode });
+  };
+
   return (
     <SurfaceLayout
-      controls={null}
-      canvas={<p>Explore — ionospheric globe surface arrives in phase 11.</p>}
+      controls={
+        <div className={classes.controls}>
+          <Panel title="View">
+            <SegmentedControl
+              options={VIEW_OPTIONS}
+              value={globeToggles.mapMode}
+              onChange={handleMapModeChange}
+              aria-label="View"
+            />
+          </Panel>
+          {target ? (
+            <LinkBudgetBreakdown
+              breakdown={breakdown.kind === 'solved' ? breakdown.data : null}
+              unreachable={breakdown.kind === 'unreachable'}
+              frequencyMhz={frequencyMhz}
+            />
+          ) : null}
+          <RayOverlayControls
+            value={rayControls}
+            onChange={handleRayControlsChange}
+            bearingLocked={target != null}
+          />
+          {globeToggles.mapMode === 'globe' ? (
+            <GlobeDisplayPanel value={globeToggles} onChange={handleGlobeTogglesChange} />
+          ) : null}
+        </div>
+      }
+      canvas={
+        globeToggles.mapMode === 'globe' ? (
+          <Suspense fallback={<div className={classes.globeLoading}>Loading 3D globe…</div>}>
+            <HfPropagationGlobe
+              layers={layers}
+              display={{
+                exaggerationFactor: globeToggles.exaggerationFactor,
+                explodeEnabled: globeToggles.explodeEnabled,
+                fresnelEnabled: globeToggles.fresnelEnabled,
+              }}
+              environmentAtMs={throttledConditions.atMs}
+              terminatorEnabled={globeToggles.terminatorEnabled}
+              txLat={station.qth.lat}
+              txLon={station.qth.lon}
+              coverageResult={null}
+              cutawayEnabled={globeToggles.cutawayEnabled}
+              sliceBearingDeg={bearingDeg}
+              rays={globeRays}
+            />
+          </Suspense>
+        ) : (
+          <VerticalCrossSection
+            bands={bands}
+            maxRangeKm={maxRangeKm}
+            rays={renderedRays.map((r) => ({
+              points: r.ray.points,
+              color: r.color,
+              dimmed: r.dimmed,
+            }))}
+            primaryRayPoints={primaryRay?.points ?? []}
+            targetRangeKm={targetRangeKm}
+            bearingDeg={bearingDeg}
+            soloLayerId={rayControls.soloLayerId}
+          />
+        )
+      }
     />
   );
 }

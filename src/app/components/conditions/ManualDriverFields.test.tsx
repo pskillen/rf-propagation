@@ -3,10 +3,10 @@ import { describe, expect, it, vi } from 'vitest';
 import DesignSystemV2Provider from '../v2/DesignSystemV2Provider.tsx';
 import ManualDriverFields from './ManualDriverFields.tsx';
 
-function renderFields(sfi = 120, kp = 2, onCommit = vi.fn()) {
+function renderFields(sfi = 120, kp = 2, onCommit = vi.fn(), unlocked = false) {
   render(
     <DesignSystemV2Provider>
-      <ManualDriverFields sfi={sfi} kp={kp} onCommit={onCommit} />
+      <ManualDriverFields sfi={sfi} kp={kp} onCommit={onCommit} unlocked={unlocked} />
     </DesignSystemV2Provider>,
   );
   return onCommit;
@@ -66,5 +66,33 @@ describe('ManualDriverFields', () => {
     fireEvent.focus(sfiInput);
     fireEvent.blur(sfiInput);
     expect(onCommit).not.toHaveBeenCalled();
+  });
+
+  it('locked, clamps an SFI above 300 to 300 on commit', () => {
+    const onCommit = renderFields(120, 2);
+    const sfiInput = screen.getByLabelText('Solar Flux Index');
+    fireEvent.focus(sfiInput);
+    fireEvent.change(sfiInput, { target: { value: '450' } });
+    fireEvent.blur(sfiInput);
+    expect(onCommit).toHaveBeenCalledWith(300, 2);
+  });
+
+  it('unlocked, accepts an SFI up to 500', () => {
+    const onCommit = renderFields(120, 2, vi.fn(), true);
+    const sfiInput = screen.getByLabelText('Solar Flux Index');
+    fireEvent.focus(sfiInput);
+    fireEvent.change(sfiInput, { target: { value: '450' } });
+    fireEvent.blur(sfiInput);
+    expect(onCommit).toHaveBeenCalledWith(450, 2);
+  });
+
+  it('marks SFI out-of-bounds when the current value is outside 60-300, regardless of the toggle', () => {
+    renderFields(400, 2, vi.fn(), true);
+    expect(screen.getByText('Outside the realistic solar-cycle range')).toBeInTheDocument();
+  });
+
+  it('does not mark SFI when the current value is within 60-300', () => {
+    renderFields(120, 2, vi.fn(), true);
+    expect(screen.queryByText('Outside the realistic solar-cycle range')).not.toBeInTheDocument();
   });
 });

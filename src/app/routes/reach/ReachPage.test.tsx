@@ -6,7 +6,7 @@ import type {
   CoverageGridWorkerResponse,
 } from '@integrations/propagation/protocol';
 import DesignSystemV2Provider from '../../components/v2/DesignSystemV2Provider.tsx';
-import { ViewerStateProvider } from '../../state/viewerState.tsx';
+import { ViewerStateProvider, useViewerState } from '../../state/viewerState.tsx';
 import ReachPage from './ReachPage.tsx';
 
 // jsdom has no real Worker implementation (CoverageGridClient's default
@@ -53,6 +53,37 @@ function renderReachPage() {
   return render(
     <ViewerStateProvider>
       <DesignSystemV2Provider>
+        <ReachPage />
+      </DesignSystemV2Provider>
+    </ViewerStateProvider>,
+  );
+}
+
+// F7.3 (phase 10's Slice 3) -- stands in for ConditionsBar's own unlock
+// toggle and an out-of-range TX power, both of which live outside this
+// page's own component tree in the real app.
+function renderReachPageWithSandboxState() {
+  function SandboxProbe() {
+    const { setState } = useViewerState();
+    return (
+      <button
+        type="button"
+        onClick={() =>
+          setState((prev) => ({
+            ...prev,
+            station: { ...prev.station, powerW: 5000 },
+            playback: { ...prev.playback, unrealismUnlocked: true },
+          }))
+        }
+      >
+        go sandbox
+      </button>
+    );
+  }
+  return render(
+    <ViewerStateProvider>
+      <DesignSystemV2Provider>
+        <SandboxProbe />
         <ReachPage />
       </DesignSystemV2Provider>
     </ViewerStateProvider>,
@@ -132,5 +163,19 @@ describe('ReachPage', () => {
       expect(container.querySelectorAll('.leaflet-overlay-pane path')).toHaveLength(0);
     });
     expect(toggle).not.toBeChecked();
+  });
+
+  it('shows the sandbox-values banner only when unlocked AND an input is out of realistic bounds (F7.3)', () => {
+    renderReachPage();
+    expect(screen.queryByText(/Sandbox values in use/)).not.toBeInTheDocument();
+  });
+
+  it('shows the sandbox-values banner once unlocked with an out-of-range TX power', () => {
+    renderReachPageWithSandboxState();
+    expect(screen.queryByText(/Sandbox values in use/)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'go sandbox' }));
+
+    expect(screen.getByText(/Sandbox values in use/)).toBeInTheDocument();
   });
 });

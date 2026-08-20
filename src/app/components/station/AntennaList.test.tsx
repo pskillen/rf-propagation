@@ -138,6 +138,45 @@ describe('AntennaList', () => {
     expect(station.antennas[0].name).toBe('Dipole');
   });
 
+  it('locked, rejects a height above 30 m with an inline error and no commit', () => {
+    const onStationChange = vi.fn();
+    render(
+      <DesignSystemV2Provider>
+        <AntennaList antennas={ANTENNAS} activeAntennaId="a1" onStationChange={onStationChange} />
+      </DesignSystemV2Provider>,
+    );
+
+    fireEvent.change(screen.getByLabelText('Height above ground (m)'), {
+      target: { value: '100' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+
+    expect(onStationChange).not.toHaveBeenCalled();
+    expect(screen.getByText('Height must be between 1 and 30 m.')).toBeInTheDocument();
+  });
+
+  it('unlocked, accepts a height above 30 m (up to 500 m)', () => {
+    const onStationChange = vi.fn();
+    render(
+      <DesignSystemV2Provider>
+        <AntennaList
+          antennas={ANTENNAS}
+          activeAntennaId="a1"
+          onStationChange={onStationChange}
+          unlocked
+        />
+      </DesignSystemV2Provider>,
+    );
+
+    fireEvent.change(screen.getByLabelText('Height above ground (m)'), {
+      target: { value: '100' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+
+    expect(onStationChange).toHaveBeenCalledTimes(1);
+    expect(onStationChange.mock.calls[0][0].antennas[0].heightM).toBe(100);
+  });
+
   it('shows the heading field for directional-lobe, bidirectional-transverse, and multi-lobe-conical, and hides it only for omnidirectional-vertical', () => {
     const onStationChange = vi.fn();
     render(

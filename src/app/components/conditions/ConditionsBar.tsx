@@ -5,19 +5,24 @@
 // shows provenance next to the SFI/Kp values (F4.7,
 // ux-and-ia.md §8 "Solar inputs show provenance inline") — never just on
 // the live path.
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useDebouncedValue } from '@mantine/hooks';
 import type { GroundType } from '@core/domain/propagation/losses';
 import type { Conditions } from '@core/domain/conditions/types';
 import { DEFAULT_CONDITIONS } from '@core/domain/conditions/defaults';
 import { UK_AMATEUR_BANDS, bandMidpointMhz } from '@core/domain/bandCatalog';
-import { conditionsUrlStateToInitialTime } from '../../lib/urlState/fields/conditions.ts';
+import { DEFAULT_BAND_ID } from '../../lib/urlState/types.ts';
 import type { ConditionsUrlState } from '../../lib/urlState/types.ts';
-import { useConditions } from '../../hooks/useConditions.ts';
 import { describeDriverProvenance, useConditionsDriver } from '../../hooks/useConditionsDriver.ts';
 import { useViewerUrlState } from '../../hooks/useViewerUrlState.ts';
 import { useViewerState } from '../../state/viewerState.tsx';
-import { Button, SegmentedControl, type SegmentedControlOption } from '../v2/index.ts';
+import { clamp, frequencyRange, kpRange, sfiRange } from '../../lib/realismBounds.ts';
+import {
+  Button,
+  SegmentedControl,
+  ToggleSwitch,
+  type SegmentedControlOption,
+} from '../v2/index.ts';
 import BandChips from './BandChips.tsx';
 import FrequencyField from './FrequencyField.tsx';
 import ManualDriverFields from './ManualDriverFields.tsx';
@@ -38,9 +43,47 @@ const GROUND_OPTIONS: SegmentedControlOption<GroundType>[] = [
   { value: 'mixed', label: 'Mixed' },
 ];
 
-export default function ConditionsBar() {
+/**
+ * `atMs`/`liveNow`/`onScrub`/`onGoLive` — the `useConditions()` clock,
+ * lifted OUT of this component in phase 10 (F7.1) and instantiated once
+ * in `App.tsx`'s `Shell`, shared with `TransportControl` (see
+ * `viewerState.tsx`'s phase-10 CORRECTION note for why: the transport
+ * control is a second writer of `atMs`, and it lives in the shared
+ * chrome, not inside this component). `onScrub` here wraps the raw
+ * clock's `scrubTo` with "pause playback first" (F7.1's own "yields to
+ * interaction" AC) — this component's own manual `TimeScrubber` drag
+ * counts as interaction the same way the transport control's own scrub
+ * slider does.
+ *
+ * `resetToken` — Slice 2's (F7.2) global reset. A plain `key`-based
+ * remount was tried first and rejected: `App.tsx`'s `handleReset` also
+ * clears the URL via `useViewerUrlState`'s `setState`, but React Router's
+ * data router applies that navigation asynchronously, so a remount
+ * scheduled in the SAME synchronous batch reliably raced ahead of the
+ * URL actually clearing and re-seeded this component's local state from
+ * the STALE (pre-reset) query string. Resetting local state directly, in
+ * an effect keyed on `resetToken`, sidesteps the URL entirely for this
+ * component's own fields (`ground`/driver/`bandId`/`frequencyMhz`) —
+ * the URL still gets cleared for other fields, just not depended on here.
+ */
+export interface ConditionsBarProps {
+  atMs: number;
+  liveNow: boolean;
+  onScrub: (atMs: number) => void;
+  onGoLive: () => void;
+  /** Bumped by `App.tsx`'s reset button; any change (not the first render) resets ground/driver/band/frequency to their defaults. */
+  resetToken?: number;
+}
+
+export default function ConditionsBar({
+  atMs,
+  liveNow,
+  onScrub,
+  onGoLive,
+  resetToken,
+}: ConditionsBarProps) {
   const { state: urlState, setState: setUrlState } = useViewerUrlState();
-  const { setState: setViewerState } = useViewerState();
+  const { state: viewerState, setState: setViewerState } = useViewerState();
 
   // Seeded once from the URL at first mount (a shared permalink's
   // Conditions override is respected on first paint) — not continuously
@@ -49,9 +92,18 @@ export default function ConditionsBar() {
   // established for Station via localStorage instead.
   const [initial] = useState(() => urlState.conditions);
 
-  const { atMs, liveNow, scrubTo, goLive } = useConditions(
-    conditionsUrlStateToInitialTime(initial),
-  );
+  const scrubTo = (nextAtMs: number) => {
+    if (viewerState.playback.playing) {
+      setViewerState((prev) => ({ ...prev, playback: { ...prev.playback, playing: false } }));
+    }
+    onScrub(nextAtMs);
+  };
+  const goLive = () => {
+    if (viewerState.playback.playing) {
+      setViewerState((prev) => ({ ...prev, playback: { ...prev.playback, playing: false } }));
+    }
+    onGoLive();
+  };
   const [ground, setGround] = useState<GroundType>(initial.gnd ?? DEFAULT_CONDITIONS.ground);
   const [initialManual] = useState(() =>
     initial.dk === 'manual' && initial.sfi !== undefined && initial.kp !== undefined
@@ -66,9 +118,58 @@ export default function ConditionsBar() {
   const selectedBand = UK_AMATEUR_BANDS.find((band) => band.id === bandId) ?? UK_AMATEUR_BANDS[0];
   const [frequencyMhz, setFrequencyMhz] = useState(() => bandMidpointMhz(bandId));
 
+  // Global reset (F7.2) -- skips the very first render (a `resetToken`
+  // change is only meaningful after mount; `undefined -> 0` on first
+  // paint must not immediately "reset" a component that was never
+  // touched). See this component's own doc comment above for why this
+  // resets local state directly rather than via a `key`-based remount.
+  const lastResetTokenRef = useRef(resetToken);
+  useEffect(() => {
+    if (resetToken === undefined || resetToken === lastResetTokenRef.current) return;
+    lastResetTokenRef.current = resetToken;
+    setGround(DEFAULT_CONDITIONS.ground);
+    clearManualDriver();
+    setEditing(false);
+    setBandId(DEFAULT_BAND_ID);
+    setFrequencyMhz(bandMidpointMhz(DEFAULT_BAND_ID));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resetToken]);
+
   function selectBand(nextBandId: string) {
     setBandId(nextBandId);
     setFrequencyMhz(bandMidpointMhz(nextBandId));
+  }
+
+  // Realism unlock (F7.3, phase 10's Slice 3). Off by default (F7.3's
+  // own AC) -- `DEFAULT_PLAYBACK.unrealismUnlocked` is already `false`.
+  //
+  // Toggling OFF clamps any currently out-of-range frequency/manual-driver
+  // value back into the locked bound (this phase's own "clamp, don't just
+  // re-hide" call) -- done directly in this handler (the toggle's own
+  // `onChange`), not in a `useEffect` keyed on the transition: the effect
+  // form was tried first and rejected by this repo's stricter
+  // react-hooks/refs-style lint rule ("calling setState synchronously
+  // within an effect can trigger cascading renders") -- the clamp only
+  // ever needs to run in direct response to this one user action anyway,
+  // so a plain conditional in the handler is both the simpler code and
+  // the one the lint rule actually wants.
+  const unlocked = viewerState.playback.unrealismUnlocked;
+  function setUnlocked(next: boolean) {
+    if (!next) {
+      const clampedFrequency = clamp(frequencyMhz, frequencyRange(false, selectedBand));
+      if (clampedFrequency !== frequencyMhz) setFrequencyMhz(clampedFrequency);
+      if (isManual) {
+        const clampedSfi = clamp(driver.sfi, sfiRange(false));
+        const clampedKp = clamp(driver.kp, kpRange(false));
+        if (clampedSfi !== driver.sfi || clampedKp !== driver.kp) {
+          setManualDriver(clampedSfi, clampedKp);
+        }
+      }
+    }
+    setViewerState((prev) => ({
+      ...prev,
+      playback: { ...prev.playback, unrealismUnlocked: next },
+    }));
   }
 
   const [debouncedAtMs] = useDebouncedValue(atMs, URL_WRITE_DEBOUNCE_MS);
@@ -147,12 +248,20 @@ export default function ConditionsBar() {
 
       {editing ? (
         <div className={classes.expanded}>
+          <ToggleSwitch
+            checked={unlocked}
+            onChange={setUnlocked}
+            label="Unrealistic values (sandbox mode)"
+            aria-label="Realism unlock"
+          />
+
           <div className={classes.bandSection}>
             <BandChips bandId={bandId} onChange={selectBand} />
             <FrequencyField
               band={selectedBand}
               frequencyMhz={frequencyMhz}
               onChange={setFrequencyMhz}
+              unlocked={unlocked}
             />
           </div>
 
@@ -163,6 +272,7 @@ export default function ConditionsBar() {
               sfi={driver.sfi}
               kp={driver.kp}
               onCommit={(sfi, kp) => setManualDriver(sfi, kp)}
+              unlocked={unlocked}
             />
             {isManual ? (
               <Button variant="ghost" size="sm" onClick={clearManualDriver}>

@@ -13,7 +13,7 @@
  * add`. Reach is the only consumer so far; move it if a later phase needs
  * the same builder from outside this component folder.
  */
-import { layerStates } from '@core/domain/propagation/layers';
+import { layerStates, type LayerState } from '@core/domain/propagation/layers';
 import { solarZenithAngleDeg } from '@core/domain/propagation/solarZenithAngle';
 import { ssnFromSfi } from '@core/domain/propagation/losses';
 import type { CoverageGridInput } from '@core/domain/propagation/coverageGrid';
@@ -61,6 +61,22 @@ function approximateGeomagLatDeg(latDeg: number, lonDeg: number): number {
 }
 
 /**
+ * `layerStates()` for a given point + Conditions -- pulled out of
+ * `buildCoverageGridInput` so the globe (phase 9, Slice 1) can compute the
+ * SAME `LayerState[]` its shells render without duplicating the
+ * geomagnetic-latitude approximation above, or depending on the full
+ * `CoverageGridInput` shape it does not otherwise need.
+ */
+export function computeLayerStates(
+  qth: { lat: number; lon: number },
+  conditions: Conditions,
+): LayerState[] {
+  const solarZenithDeg = solarZenithAngleDeg(qth.lat, qth.lon, conditions.atMs);
+  const geomagLatDeg = approximateGeomagLatDeg(qth.lat, qth.lon);
+  return layerStates(conditions.driver.sfi, conditions.driver.kp, solarZenithDeg, geomagLatDeg);
+}
+
+/**
  * Builds a `CoverageGridInput` for `station`/`conditions`/`frequencyMhz`,
  * at `qth` (defaults to `station.qth` — an explicit override lets a
  * live marker-drag recompute at the pointer's current position without
@@ -77,15 +93,12 @@ export function buildCoverageGridInput(
     station.antennas.find((antenna) => antenna.id === station.activeAntennaId) ??
     station.antennas[0];
 
-  const solarZenithDeg = solarZenithAngleDeg(qth.lat, qth.lon, conditions.atMs);
-  const geomagLatDeg = approximateGeomagLatDeg(qth.lat, qth.lon);
-
   return {
     txLat: qth.lat,
     txLon: qth.lon,
     atMs: conditions.atMs,
     frequencyMhz,
-    layers: layerStates(conditions.driver.sfi, conditions.driver.kp, solarZenithDeg, geomagLatDeg),
+    layers: computeLayerStates(qth, conditions),
     ssn: ssnFromSfi(conditions.driver.sfi),
     txPowerW: station.powerW,
     // Slice 1 (fix/reach-directionality-antenna-greyline): the whole TX

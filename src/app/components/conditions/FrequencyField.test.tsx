@@ -14,10 +14,15 @@ const BAND_40M: BandDefinition = {
   category: 'amateur',
 };
 
-function renderField(frequencyMhz = 7.1, onChange = vi.fn(), band = BAND_40M) {
+function renderField(frequencyMhz = 7.1, onChange = vi.fn(), band = BAND_40M, unlocked = false) {
   render(
     <DesignSystemV2Provider>
-      <FrequencyField band={band} frequencyMhz={frequencyMhz} onChange={onChange} />
+      <FrequencyField
+        band={band}
+        frequencyMhz={frequencyMhz}
+        onChange={onChange}
+        unlocked={unlocked}
+      />
     </DesignSystemV2Provider>,
   );
   return onChange;
@@ -83,5 +88,33 @@ describe('FrequencyField', () => {
     );
     const input = screen.getByLabelText('Frequency (MHz)') as HTMLInputElement;
     expect(input.value).toBe('14.175');
+  });
+
+  it('unlocked, accepts a value outside the band (up to 30 MHz), ignoring band edges', () => {
+    const onChange = renderField(7.1, vi.fn(), BAND_40M, true);
+    const input = screen.getByLabelText('Frequency (MHz)') as HTMLInputElement;
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: '25' } });
+    fireEvent.blur(input);
+    expect(onChange).toHaveBeenCalledWith(25);
+  });
+
+  it('unlocked, still clamps to the outer 1-30 MHz sandbox range', () => {
+    const onChange = renderField(7.1, vi.fn(), BAND_40M, true);
+    const input = screen.getByLabelText('Frequency (MHz)') as HTMLInputElement;
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: '99' } });
+    fireEvent.blur(input);
+    expect(onChange).toHaveBeenCalledWith(30);
+  });
+
+  it('marks the field out-of-bounds when the current value sits outside the band, regardless of the toggle', () => {
+    renderField(25, vi.fn(), BAND_40M, true);
+    expect(screen.getByText('Outside the realistic range for this band')).toBeInTheDocument();
+  });
+
+  it('does not mark the field when the current value is within the band', () => {
+    renderField(7.1, vi.fn(), BAND_40M, true);
+    expect(screen.queryByText('Outside the realistic range for this band')).not.toBeInTheDocument();
   });
 });

@@ -1,13 +1,14 @@
 # Reach
 
 **Reach** is the signature feature and the first genuinely useful
-artefact in the product: a 2D map, the station marked, the coverage grid
-(the propagation engine's `computeCoverageGrid`, phase 4) rendered as
-shaded ground — groundwave disc, skip zone, hop 1–4 bands all legible at
-a glance — a best-band-now summary strip, and cell selection that records
-a target. It's the first surface to bind Station (phase 6) and
-Conditions (phase 7) to the engine at all; both phases' own docs list
-"propagation engine wiring" as "not started" until this one.
+artefact in the product: a 2D map (or, since phase 9, a 3D globe), the
+station marked, the coverage grid (the propagation engine's
+`computeCoverageGrid`, phase 4) rendered as shaded ground — groundwave
+disc, skip zone, hop 1–4 bands all legible at a glance — a best-band-now
+summary strip, and cell selection that records a target. It's the first
+surface to bind Station (phase 6) and Conditions (phase 7) to the engine
+at all; both phases' own docs list "propagation engine wiring" as "not
+started" until this one.
 
 mk1 (the prior in-Studio version) drew this picture with individual
 illustration rays and constant-radius rings for groundwave/skip zone —
@@ -37,7 +38,7 @@ discrete feature phase 10's transport control retrofits.
 | 2D greyline (terminator + sun marker) | Shipped (`fix/reach-directionality-antenna-greyline`) | Dashed terminator line, sun marker, best-effort night shading, local toggle (default on) — [greyline.md](greyline.md) |
 | Coverage/band-ranking/greyline recompute cadence | Shipped (`fix/reach-coverage-recompute-cadence`) | Auto-recompute throttled to Conditions changing meaningfully (~60s of live-clock drift, or any non-time field), not every 1s clock tick; live-drag stays instant/unthrottled — [coverage-surface.md](coverage-surface.md#recompute-cadence) |
 | Greyline antimeridian world-copy anchoring | Shipped (`fix/greyline-antimeridian-wrap`) | The terminator ring/sun marker now re-anchor to the map's current center longitude on every pan/zoom, instead of a fixed anchor with no relationship to the view — fixes the terminator tearing/vanishing after panning east or west across several world copies — [greyline.md](greyline.md#antimeridian-handling) |
-| The 3D globe | Not started | Phase 9 — Reach is 2D-map-only; the globe reuses this phase's exact shading formula, and imports this phase's `solarTerminator.ts` rather than re-porting it |
+| The 3D globe | Shipped (phase 9) | Shells, day/night terminator, coverage grid as a ground-shading texture, viewport offset, map/globe view switch — [globe.md](globe.md) |
 | Transport control / realism unlock / permalink / presets | Not started | Phase 10's discrete F7 tickets; live-drag response here is the standing constraint those tickets build UI around |
 | Full Path view / verdict table | Not started | Phase 13 — Slice 5 only records a target and shows a minimal same-surface summary |
 | Per-operator licence class | Not started | Inherited gap from phase 7 (`BandChips.tsx`) — "best band now" ranks all of `UK_AMATEUR_BANDS` unfiltered, since no licence-class model exists anywhere yet |
@@ -49,6 +50,7 @@ discrete feature phase 10's transport control retrofits.
 | [coverage-surface.md](coverage-surface.md) | The map, live-draggable marker, `CoverageCanvasLayer`, cell↔lat/lon projection, the hue/opacity shading scheme + legend, and antenna directionality |
 | [target-selection.md](target-selection.md) | Reach-extremes extraction, the best-band-now per-band ranking, and cell-selection target recording |
 | [greyline.md](greyline.md) | The terminator line, sun marker, night-shading polygon, and the local greyline toggle |
+| [globe.md](globe.md) | The 3D globe: shells, day/night terminator, coverage ground-shading texture, viewport offset, map/globe view switch, and the Display panel |
 
 ## Concepts
 
@@ -74,4 +76,6 @@ discrete feature phase 10's transport control retrofits.
 
 - Tracking: [Feature #7 "Reach"](https://github.com/pskillen/rf-propagation/issues/7)
 - Task issues (phase 8): [#49](https://github.com/pskillen/rf-propagation/issues/49)–[#53](https://github.com/pskillen/rf-propagation/issues/53)
+- Tracking (globe): [Feature #8 "Globe and ionospheric shells"](https://github.com/pskillen/rf-propagation/issues/8)
+- Task issues (phase 9): [#54](https://github.com/pskillen/rf-propagation/issues/54)–[#57](https://github.com/pskillen/rf-propagation/issues/57), [#62](https://github.com/pskillen/rf-propagation/issues/62)
 - Reference source (read-only, not linked from committed docs per [AGENTS.md](../../../AGENTS.md)): Codeplug Studio's `src/app/components/PropagationTopDownMap/`, `src/app/components/MapLocationPicker/`, `src/app/components/map/leafletSetup.ts`, `src/core/domain/geoDistance.ts` — structural shape only; mk1's ring-drawing (`footprint.ts`) is explicitly not ported, superseded by the coverage grid.

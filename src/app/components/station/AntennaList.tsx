@@ -9,6 +9,7 @@
 import { useEffect, useState } from 'react';
 import type { AntennaConfig, AntennaPatternFamily, Station } from '@core/domain/station/types';
 import { mergeStation } from '@integrations/station/persistence';
+import { antennaHeightRange } from '../../lib/realismBounds.ts';
 import {
   Button,
   Combobox,
@@ -37,6 +38,8 @@ export interface AntennaListProps {
    * add-mode window before a family is picked.
    */
   onDraftChange?: (draft: AntennaConfig | null) => void;
+  /** F7.3, phase 10's Slice 3 -- relaxes the height field's bound from `[1, 30]` m to `[0.5, 500]` m. */
+  unlocked?: boolean;
 }
 
 // Label tightened (this slice) from "Multi-lobe (long wire)" -- the
@@ -145,7 +148,9 @@ export default function AntennaList({
   activeAntennaId,
   onStationChange,
   onDraftChange,
+  unlocked = false,
 }: AntennaListProps) {
+  const heightRange = antennaHeightRange(unlocked);
   const initialActive = antennas.find((antenna) => antenna.id === activeAntennaId);
   const initialFields = fieldsFromAntenna(initialActive);
 
@@ -299,8 +304,11 @@ export default function AntennaList({
     if (!family) {
       return { ok: false, error: 'Choose a pattern family.' };
     }
-    if (!Number.isFinite(height) || height <= 0) {
-      return { ok: false, error: 'Height must be a positive number.' };
+    if (!Number.isFinite(height) || height < heightRange.min || height > heightRange.max) {
+      return {
+        ok: false,
+        error: `Height must be between ${heightRange.min} and ${heightRange.max} m.`,
+      };
     }
     if (!Number.isFinite(gain)) {
       return { ok: false, error: 'Gain must be a number.' };
@@ -412,10 +420,12 @@ export default function AntennaList({
             placeholder="Search pattern families…"
           />
         </FormField>
-        <FormField label="Height above ground (m)">
+        <FormField label={`Height above ground (m, ${heightRange.min}–${heightRange.max})`}>
           <TextInput
             variant="plain"
             type="number"
+            min={heightRange.min}
+            max={heightRange.max}
             aria-label="Height above ground (m)"
             value={heightM}
             onChange={(event) => setHeightM(event.target.value)}

@@ -1,0 +1,67 @@
+import { render } from '@testing-library/react';
+import { describe, expect, it } from 'vitest';
+import VerticalCrossSection from './VerticalCrossSection.tsx';
+
+const BANDS = [
+  { layer: 'E' as const, heightKm: 110 },
+  { layer: 'F2' as const, heightKm: 300 },
+];
+
+describe('VerticalCrossSection', () => {
+  it('renders a labelled x-axis and y-axis (F8.1 acceptance criterion)', () => {
+    const { getByText } = render(
+      <VerticalCrossSection
+        bands={BANDS}
+        maxRangeKm={3000}
+        rays={[]}
+        primaryRayPoints={[]}
+        bearingDeg={90}
+      />,
+    );
+    expect(getByText('Altitude (km)')).toBeInTheDocument();
+    expect(getByText('Ground distance (km)')).toBeInTheDocument();
+  });
+
+  it('draws one line per active band, labelled with the layer id', () => {
+    const { getAllByText } = render(
+      <VerticalCrossSection
+        bands={BANDS}
+        maxRangeKm={3000}
+        rays={[]}
+        primaryRayPoints={[]}
+        bearingDeg={90}
+      />,
+    );
+    // Each layer id appears twice -- once as the SVG band label, once in
+    // the touch-accessible layer legend below (Slice 4, F8.4).
+    expect(getAllByText('E').length).toBeGreaterThan(0);
+    expect(getAllByText('F2').length).toBeGreaterThan(0);
+  });
+
+  it('renders no target marker when target is unset', () => {
+    const { queryByTestId } = render(
+      <VerticalCrossSection
+        bands={BANDS}
+        maxRangeKm={3000}
+        rays={[]}
+        primaryRayPoints={[]}
+        bearingDeg={90}
+      />,
+    );
+    expect(queryByTestId('target-marker')).toBeNull();
+  });
+
+  it('renders a target marker line at the target range (Path mode, FR-18)', () => {
+    const { queryByTestId } = render(
+      <VerticalCrossSection
+        bands={BANDS}
+        maxRangeKm={3000}
+        rays={[]}
+        primaryRayPoints={[]}
+        targetRangeKm={1500}
+        bearingDeg={90}
+      />,
+    );
+    expect(queryByTestId('target-marker')).not.toBeNull();
+  });
+});

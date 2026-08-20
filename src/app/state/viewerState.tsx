@@ -1,12 +1,16 @@
 import { createContext, useContext, useMemo, useState, type ReactNode } from 'react';
-import type { Station } from '@core/domain/station/types';
+import type { AntennaConfig, AntennaPatternFamily, Station } from '@core/domain/station/types';
 import { DEFAULT_STATION } from '@core/domain/station/defaults';
+import { coordsToLocator } from '@core/domain/maidenhead';
 import type { Conditions } from '@core/domain/conditions/types';
 import { DEFAULT_CONDITIONS } from '@core/domain/conditions/defaults';
 import { bandMidpointMhz } from '@core/domain/bandCatalog';
 import { loadStation } from '@integrations/station/persistence';
 import { decodeViewerUrlState } from '../lib/urlState/codec.ts';
-import type { SurfaceId } from '../lib/urlState/types.ts';
+import type { StationUrlState, SurfaceId } from '../lib/urlState/types.ts';
+import { DEFAULT_GLOBE_TOGGLES, type GlobeToggles } from './globeToggles.ts';
+import { DEFAULT_PLAYBACK, type PlaybackState } from './playback.ts';
+import { DEFAULT_RAY_CONTROLS, type RayControlsState } from './rayControls.ts';
 
 /**
  * `ViewerState.target`'s source — how the operator set the current target.
@@ -28,10 +32,19 @@ export interface Target {
 /**
  * Full runtime viewer state — a superset of `ViewerUrlState` (the
  * URL-serializable subset only; see the plan file's "runtime state vs. URL
- * state" note). `display`, `playback`, `compare` are added by phases
- * 10/11, 12 respectively — each phase adds one property to this interface
- * and one piece of its own provider logic, never edits another phase's
- * fields.
+ * state" note).
+ *
+ * CORRECTION (phase 9): this file's doc comment previously said `display`
+ * was added by phase 10 ("`display`, `playback`, `compare` are added by
+ * phases 10/11, 12 respectively") — a projection written during phase 5,
+ * before phase 9's own plan file was drafted. Phase 9's plan file
+ * explicitly and repeatedly calls for `ViewerState.display.globeToggles`
+ * (Slice 2, F6.2's own "settings persist and are registered with the URL
+ * codec" AC), so `display` actually originates HERE, not in phase 10 —
+ * phase 10 (transport control) builds its own `playback` field on top of
+ * a `display` that already exists by the time it starts. `compare`
+ * (phase 12) is unaffected. See this phase's PR description for the full
+ * reasoning.
  *
  * `station`/`conditions`/`bandId`/`frequencyMhz`/`target` (phase 8, Reach)
  * are a DEVIATION from phases 6/7's actual shipped shape: those phases
@@ -50,7 +63,30 @@ export interface Target {
  * ConditionsBar needs to write them (yet). See this PR's description for
  * the full reasoning — flagged there as a decision later phases (9-15,
  * which all read Station/Conditions the same way) should be aware of.
+ *
+ * CORRECTION (phase 10): "since nothing outside ConditionsBar needs to
+ * write them (yet)" stopped being true for `atMs`/`liveNow` specifically
+ * — the transport control (F7.1) is a second writer, and it lives in the
+ * shared chrome, not inside `ConditionsBar`. `atMs`/`liveNow` ownership
+ * moves to a single `useConditions()` call made once in `App.tsx`'s
+ * `Shell` (above both `ConditionsBar` and `TransportControl`), passed
+ * into `ConditionsBar` as props instead of that component calling the
+ * hook itself; `driver`/`ground`/`bandId`/`frequencyMhz` are UNCHANGED —
+ * still ConditionsBar-local, still published one-way into this context,
+ * since nothing outside ConditionsBar writes those.
  */
+/**
+ * Display-only surface settings — phase 9 (Globe) adds `globeToggles`;
+ * phase 11 (Explore) adds `rayControls` (F8.2/F8.3's ray-count/filter/
+ * colour/solo state — see `rayControls.ts`'s own doc comment for why it's
+ * grouped here rather than flat on this interface). Never edit a sibling
+ * field's own shape from outside the phase that owns it.
+ */
+export interface DisplayState {
+  globeToggles: GlobeToggles;
+  rayControls: RayControlsState;
+}
+
 export interface ViewerState {
   surface: SurfaceId;
   station: Station;
@@ -58,6 +94,9 @@ export interface ViewerState {
   bandId: string;
   frequencyMhz: number;
   target: Target | null;
+  display: DisplayState;
+  /** Transport-control play/pause/speed and the realism-unlock flag (F7.1/F7.3, phase 10). */
+  playback: PlaybackState;
 }
 
 export interface ViewerStateContextValue {
@@ -89,7 +128,14 @@ function initialViewerState(): ViewerState {
   const decoded = decodeViewerUrlState(new URLSearchParams(window.location.search));
   return {
     surface: decoded.surface,
-    station: loadStation() ?? DEFAULT_STATION,
+    // CORRECTION (phase 10, Slice 4): `decoded.station` was previously
+    // ignored entirely here -- `stationFieldCodec` could decode
+    // qlat/qlon/ant/pwr/noise, but nothing ever applied the result, so a
+    // shared permalink's Station override silently did nothing (a real
+    // gap, found while wiring the permalink's "opening one reproduces the
+    // scenario exactly" AC end-to-end, not assumed). `applyStationUrlOverrides`
+    // layers the URL's overrides on top of the loaded/default Station.
+    station: applyStationUrlOverrides(loadStation() ?? DEFAULT_STATION, decoded.station),
     conditions: DEFAULT_CONDITIONS,
     bandId: decoded.bandId,
     frequencyMhz: bandMidpointMhz(decoded.bandId),
@@ -98,6 +144,124 @@ function initialViewerState(): ViewerState {
     // other than 'map-click' -- see TargetUrlState's own doc comment for
     // why `label`/`source` are lossy across a permalink.
     target: decoded.target ? { ...decoded.target, source: 'map-click' } : null,
+    // NOT a blind `{ ...DEFAULT_GLOBE_TOGGLES, ...decoded.globe }` spread --
+    // globeFieldCodec.decode() always returns every GlobeUrlState key (per
+    // the same "override only" contract stationFieldCodec/
+    // conditionsFieldCodec use), just `undefined` on any field neither the
+    // URL nor DEFAULT_VIEWER_URL_STATE.globe (`{}`) supplied. A spread would
+    // still copy those `undefined`-valued keys over DEFAULT_GLOBE_TOGGLES's
+    // real values, since object spread does not skip `undefined` properties
+    // -- each field needs its own `??` fallback instead.
+    display: {
+      globeToggles: {
+        exaggerationFactor:
+          decoded.globe.exaggerationFactor ?? DEFAULT_GLOBE_TOGGLES.exaggerationFactor,
+        explodeEnabled: decoded.globe.explodeEnabled ?? DEFAULT_GLOBE_TOGGLES.explodeEnabled,
+        fresnelEnabled: decoded.globe.fresnelEnabled ?? DEFAULT_GLOBE_TOGGLES.fresnelEnabled,
+        terminatorEnabled:
+          decoded.globe.terminatorEnabled ?? DEFAULT_GLOBE_TOGGLES.terminatorEnabled,
+        cutawayEnabled: decoded.globe.cutawayEnabled ?? DEFAULT_GLOBE_TOGGLES.cutawayEnabled,
+        mapMode: decoded.globe.mapMode ?? DEFAULT_GLOBE_TOGGLES.mapMode,
+      },
+      // Same "each field its own `??` fallback" contract as globeToggles
+      // above (phase 11, F8.2/F8.3) — `decoded.explore` always has every
+      // key present (possibly `undefined`), so a blind spread would still
+      // clobber `DEFAULT_RAY_CONTROLS`' real values with those `undefined`s.
+      rayControls: {
+        radials: decoded.explore.radials ?? DEFAULT_RAY_CONTROLS.radials,
+        elevations: decoded.explore.elevations ?? DEFAULT_RAY_CONTROLS.elevations,
+        elevationSpreadDeg: [
+          decoded.explore.esMin ?? DEFAULT_RAY_CONTROLS.elevationSpreadDeg[0],
+          decoded.explore.esMax ?? DEFAULT_RAY_CONTROLS.elevationSpreadDeg[1],
+        ],
+        focusBearingDeg: decoded.explore.focusBearingDeg ?? DEFAULT_RAY_CONTROLS.focusBearingDeg,
+        outcomeFilter: decoded.explore.outcomeFilter ?? DEFAULT_RAY_CONTROLS.outcomeFilter,
+        colourBy: decoded.explore.colourBy ?? DEFAULT_RAY_CONTROLS.colourBy,
+        soloLayerId: decoded.explore.soloLayerId ?? DEFAULT_RAY_CONTROLS.soloLayerId,
+      },
+    },
+    // `playing` is never persisted (see this phase's plan file --
+    // "nobody wants to reopen the tab into a running animation").
+    // `unrealismUnlocked` DOES round-trip through the URL codec (Slice 4,
+    // F7.4's own "including the realism-unlock state" AC).
+    playback: {
+      ...DEFAULT_PLAYBACK,
+      unrealismUnlocked: decoded.playback.unrealismUnlocked ?? DEFAULT_PLAYBACK.unrealismUnlocked,
+    },
+  };
+}
+
+/**
+ * A plausible antenna for a bare pattern-family name, with no
+ * height/gain/heading of its own to go on (the URL carries none) --
+ * reasonable defaults per family, close to `DEFAULT_STATION`'s own
+ * dipole's own judgment-call figures. Used only when `applyStationUrlOverrides`
+ * finds no EXISTING antenna of the requested family to activate instead.
+ */
+const ANTENNA_PATTERN_FAMILIES: readonly AntennaPatternFamily[] = [
+  'omnidirectional-vertical',
+  'bidirectional-transverse',
+  'directional-lobe',
+  'multi-lobe-conical',
+];
+
+function isAntennaPatternFamily(value: string): value is AntennaPatternFamily {
+  return (ANTENNA_PATTERN_FAMILIES as readonly string[]).includes(value);
+}
+
+function synthesizeAntennaForFamily(family: AntennaPatternFamily): AntennaConfig {
+  const base = { id: `url-${family}`, name: `${family} (from link)`, heightM: 7, gainDbi: 2.1 };
+  if (family === 'directional-lobe') return { ...base, family, azimuthDeg: 0 };
+  return { ...base, family };
+}
+
+/**
+ * Layers `StationUrlState`'s lossy overrides on top of an already-loaded
+ * `Station` (Slice 4, F7.4; extended in Slice 5 to synthesize a matching
+ * antenna rather than dropping the override). `qlat`/`qlon` override
+ * `qth` (locator recomputed to stay consistent, source becomes
+ * `'default'` -- neither `'map'` nor `'geolocation'`/`'address'`/
+ * `'maidenhead'` accurately describes "came from a shared link");
+ * `pwr`/`noise` override directly. `ant` (the active antenna's pattern
+ * family) is the lossiest field -- `StationUrlState`'s own doc comment
+ * already flags this is "enough to reconstruct a PLAUSIBLE antenna," not
+ * the exact one: this function first looks for an antenna already in the
+ * (loaded-or-default) array with a matching `family` and makes IT
+ * active; only when NONE exists does it synthesize a new one
+ * (`synthesizeAntennaForFamily`) and append it, active. CORRECTION
+ * (Slice 5): Slice 4's own version silently dropped the override with no
+ * match at all -- found to matter in practice once Slice 5's presets
+ * needed a SPECIFIC family (e.g. a vertical) to actually take effect for
+ * a first-time visitor whose only saved antenna is the default dipole.
+ */
+function applyStationUrlOverrides(station: Station, override: StationUrlState): Station {
+  const lat = override.qlat ?? station.qth.lat;
+  const lon = override.qlon ?? station.qth.lon;
+  const qth =
+    override.qlat !== undefined || override.qlon !== undefined
+      ? { lat, lon, locator: coordsToLocator(lat, lon), source: 'default' as const }
+      : station.qth;
+
+  let antennas = station.antennas;
+  let activeAntennaId = station.activeAntennaId;
+  if (override.ant !== undefined && isAntennaPatternFamily(override.ant)) {
+    const matching = station.antennas.find((antenna) => antenna.family === override.ant);
+    if (matching) {
+      activeAntennaId = matching.id;
+    } else {
+      const synthesized = synthesizeAntennaForFamily(override.ant);
+      antennas = [...station.antennas, synthesized];
+      activeAntennaId = synthesized.id;
+    }
+  }
+
+  return {
+    ...station,
+    qth,
+    antennas,
+    activeAntennaId,
+    powerW: override.pwr ?? station.powerW,
+    noiseEnvironment: override.noise ?? station.noiseEnvironment,
   };
 }
 

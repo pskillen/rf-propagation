@@ -11,18 +11,25 @@
 // simple enough (no drag/slider, no expensive recompute triggered) that a
 // local draft + blur-commit covers the same "don't write every keystroke"
 // concern without the extra hook machinery.
+//
+// `unlocked` (F7.3, phase 10's Slice 3) — while true, the commit clamp
+// relaxes to `UNLOCKED_TX_POWER_RANGE_W` (1-100,000 W) instead of the
+// realistic 1-1500 W range. Marked out-of-bounds whenever the CURRENT
+// value sits outside the realistic range, regardless of the toggle.
 import { useState } from 'react';
 import type { Station } from '@core/domain/station/types';
 import { mergeStation } from '@integrations/station/persistence';
+import { isTxPowerOutOfRealisticBounds, txPowerRange } from '../../lib/realismBounds.ts';
 import { FormField, TextInput } from '../v2/index.ts';
 import classes from './PowerInput.module.css';
 
 export interface PowerInputProps {
   powerW: number;
   onStationChange: (station: Station) => void;
+  unlocked?: boolean;
 }
 
-export default function PowerInput({ powerW, onStationChange }: PowerInputProps) {
+export default function PowerInput({ powerW, onStationChange, unlocked = false }: PowerInputProps) {
   const [draft, setDraft] = useState(String(powerW));
   const [editing, setEditing] = useState(false);
   // Adjusting state during render (React's documented pattern for
@@ -35,6 +42,8 @@ export default function PowerInput({ powerW, onStationChange }: PowerInputProps)
     setDraft(String(powerW));
   }
 
+  const range = txPowerRange(unlocked);
+
   function commit() {
     setEditing(false);
     const parsed = Number(draft);
@@ -42,17 +51,25 @@ export default function PowerInput({ powerW, onStationChange }: PowerInputProps)
       setDraft(String(powerW));
       return;
     }
-    if (parsed === powerW) return;
-    onStationChange(mergeStation({ powerW: parsed }));
+    const clamped = Math.min(range.max, Math.max(range.min, parsed));
+    setDraft(String(clamped));
+    if (clamped === powerW) return;
+    onStationChange(mergeStation({ powerW: clamped }));
   }
 
   return (
     <div className={classes.root}>
-      <FormField label="TX power (W)">
+      <FormField
+        label="TX power (W)"
+        error={
+          isTxPowerOutOfRealisticBounds(powerW) ? 'Outside the realistic amateur range' : undefined
+        }
+      >
         <TextInput
           variant="plain"
           type="number"
-          min={0}
+          min={range.min}
+          max={range.max}
           aria-label="TX power (W)"
           value={draft}
           onFocus={() => setEditing(true)}

@@ -57,16 +57,31 @@ loading.
 
 ## Fields so far
 
-| Field     | Type                                           | Added   | Codec                                                                  |
-| --------- | ---------------------------------------------- | ------- | ---------------------------------------------------------------------- |
-| `surface` | `'reach' \| 'path' \| 'timeline' \| 'explore'` | Phase 5 | [`fields/surface.ts`](../../../src/app/lib/urlState/fields/surface.ts) |
+| Field                 | Type                                           | Added                    | Codec                                                                                                                                          |
+| --------------------- | ---------------------------------------------- | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `surface`             | `'reach' \| 'path' \| 'timeline' \| 'explore'` | Phase 5                  | [`fields/surface.ts`](../../../src/app/lib/urlState/fields/surface.ts)                                                                         |
+| `station`             | `StationUrlState`                              | Phase 6                  | [`fields/station.ts`](../../../src/app/lib/urlState/fields/station.ts)                                                                         |
+| `conditions`/`bandId` | `ConditionsUrlState` / `string`                | Phase 7                  | [`fields/conditions.ts`](../../../src/app/lib/urlState/fields/conditions.ts), [`fields/band.ts`](../../../src/app/lib/urlState/fields/band.ts) |
+| `target`              | `TargetUrlState \| undefined`                  | Phase 8                  | [`fields/target.ts`](../../../src/app/lib/urlState/fields/target.ts)                                                                           |
+| `globe`               | `GlobeUrlState`                                | Phase 9                  | [`fields/globe.ts`](../../../src/app/lib/urlState/fields/globe.ts)                                                                             |
+| `playback`            | `PlaybackUrlState` (`unrealismUnlocked` only)  | Phase 10 (Slice 4, F7.4) | [`fields/playback.ts`](../../../src/app/lib/urlState/fields/playback.ts)                                                                       |
 
-Per the product doc set's UX/IA state model (uncommitted design doc — see
-[AGENTS.md](../../../AGENTS.md) for where it currently lives), the
-eventual shape also includes `station` (phase 6), `conditions`/`bandId`
-(phase 7), `target` (phase 8/13), `display`/`playback` (phases 10/11),
-`compare` (phase 12) — each lands with the phase that introduces the
-corresponding piece of state.
+`playback.playing`/`speedMultiplier` deliberately never round-trip
+(playback state is explicitly never persisted — see
+[playground-controls.md](playground-controls.md)); `compare` (phase 12)
+is the one remaining field from the product doc set's UX/IA state model
+not yet registered.
+
+Phase 10 (Slice 4, F7.4) is also the first phase to build a mapping from
+the FULL `ViewerState` into `ViewerUrlState` (`viewerStateToUrlState`,
+`src/app/lib/urlState/fromViewerState.ts`) — the permalink's "Share"
+button. Before that, no single writer ever produced a complete
+`ViewerUrlState`: `ConditionsBar`'s own url-write effect only ever wrote
+the two fields it owns, and Station/target/globe changes never wrote to
+the URL live at all (see that doc's own Slice 4 section for the full
+story, including a real gap it found and fixed: `stationFieldCodec`
+could already DECODE a Station override, but nothing applied the decoded
+value until this slice).
 
 ## Versioning and degrade behaviour
 

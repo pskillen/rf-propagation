@@ -3,6 +3,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import DesignSystemV2Provider from '../v2/DesignSystemV2Provider.tsx';
 import { ViewerStateProvider } from '../../state/viewerState.tsx';
+import { useConditions } from '../../hooks/useConditions.ts';
+import { conditionsUrlStateToInitialTime } from '../../lib/urlState/fields/conditions.ts';
+import { useViewerUrlState } from '../../hooks/useViewerUrlState.ts';
 import ConditionsBar from './ConditionsBar.tsx';
 
 const mockFetchLatestSpaceWeather = vi.fn();
@@ -18,12 +21,23 @@ vi.mock('@integrations/conditions/persistence', () => ({
   saveLastKnownDriver: (...args: unknown[]) => mockSaveLastKnownDriver(...args),
 }));
 
+// Phase 10 lifted the `useConditions()` clock out of `ConditionsBar` (see
+// `viewerState.tsx`'s phase-10 CORRECTION note) -- this harness stands in
+// for `App.tsx`'s `Shell`, which now owns that call.
+function ConditionsBarHarness() {
+  const { state: urlState } = useViewerUrlState();
+  const { atMs, liveNow, scrubTo, goLive } = useConditions(
+    conditionsUrlStateToInitialTime(urlState.conditions),
+  );
+  return <ConditionsBar atMs={atMs} liveNow={liveNow} onScrub={scrubTo} onGoLive={goLive} />;
+}
+
 function renderBar(initialEntry = '/') {
   render(
     <MemoryRouter initialEntries={[initialEntry]}>
       <ViewerStateProvider>
         <DesignSystemV2Provider>
-          <ConditionsBar />
+          <ConditionsBarHarness />
         </DesignSystemV2Provider>
       </ViewerStateProvider>
     </MemoryRouter>,
@@ -107,5 +121,36 @@ describe('ConditionsBar', () => {
   it('seeds the selected band from the URL b param', () => {
     renderBar('/?b=15m');
     expect(screen.getByText(/15 m @/)).toBeInTheDocument();
+  });
+
+  describe('realism unlock (F7.3)', () => {
+    it('is off by default, and the frequency field enforces the band range', () => {
+      renderBar();
+      fireEvent.click(screen.getByText('Edit conditions'));
+      expect(screen.getByLabelText('Realism unlock')).not.toBeChecked();
+    });
+
+    it('toggling on relaxes the frequency field beyond the band edges', () => {
+      renderBar();
+      fireEvent.click(screen.getByText('Edit conditions'));
+      fireEvent.click(screen.getByLabelText('Realism unlock'));
+
+      const frequencyInput = screen.getByLabelText('Frequency (MHz)');
+      fireEvent.focus(frequencyInput);
+      fireEvent.change(frequencyInput, { target: { value: '25' } });
+      fireEvent.blur(frequencyInput);
+      expect(screen.getByText(/40 m @ 25 MHz/)).toBeInTheDocument();
+    });
+
+    it('toggling off clamps an out-of-range manual SFI back into the realistic range', () => {
+      renderBar('/?dk=manual&sfi=400&kp=2');
+      fireEvent.click(screen.getByText('Edit conditions'));
+      expect(screen.getByText(/SFI 400/)).toBeInTheDocument();
+
+      fireEvent.click(screen.getByLabelText('Realism unlock')); // on
+      fireEvent.click(screen.getByLabelText('Realism unlock')); // off
+
+      expect(screen.getByText(/SFI 300/)).toBeInTheDocument();
+    });
   });
 });

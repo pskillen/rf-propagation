@@ -23,6 +23,11 @@ placeholder — Path, Timeline and Explore still are.
 | Responsive layout skeleton | Shipped | `SurfaceLayout` controls-plus-canvas grid, mounted on all four surfaces (Reach is no longer a placeholder as of phase 8) — [component-kit-and-shell.md](component-kit-and-shell.md) |
 | Station bar / Conditions bar content | Both shipped | `stationBar` slot filled by `StationBar` (phase 6) — see [Station](../station/README.md); `conditionsBar` slot filled by `ConditionsBar` (phase 7) — see [Conditions](../conditions/README.md) |
 | Any propagation-engine wiring | Not started (at this phase) | This phase itself imports nothing from `src/core/domain/propagation/` or `src/integrations/propagation/`; [Reach](../reach/README.md) (phase 8) is the first surface to call the engine |
+| Transport control (play/pause/speed/scrub) | Shipped | Third persistent chrome slot (`AppChrome`'s `transportControl`), filled by `TransportControl` (phase 10, F7.1) — drives `Conditions.atMs`, shared with `ConditionsBar` via a clock lifted to `App.tsx`'s `Shell`. See [playground-controls.md](playground-controls.md) and the component's own sidecar, `src/app/components/TransportControl/TransportControl.md` |
+| Global reset-to-defaults | Shipped | `ResetButton` (phase 10, F7.2), always visible in the header — [playground-controls.md](playground-controls.md) |
+| Realism unlock | Shipped | `ViewerState.playback.unrealismUnlocked` toggle in `ConditionsBar` (phase 10, F7.3), relaxes SFI/Kp/antenna-height/frequency/TX-power bounds and shows a sandbox-value banner on Reach/Globe — [playground-controls.md](playground-controls.md) |
+| Permalink sharing | Shipped | `ShareButton` (phase 10, F7.4) builds a complete `ViewerUrlState` fresh from `ViewerState` — the first writer to do so; also fixed a gap where a shared link's Station override was decoded but never applied — [playground-controls.md](playground-controls.md) |
+| Preset scenarios | Shipped | `PresetMenu` (phase 10, F7.5), four canned permalinks grounded in the engine's own validation-harness worked examples — [playground-controls.md](playground-controls.md) |
 
 ## Documentation map
 
@@ -30,6 +35,7 @@ placeholder — Path, Timeline and Explore still are.
 | --- | --- |
 | [component-kit-and-shell.md](component-kit-and-shell.md) | What was ported from Studio's `v2` kit and what was excluded, the two components needed to compile the kit but not part of its public surface, `AppChrome`, `SurfaceLayout`, and the four-route shell (phase 5) |
 | [url-state-codec.md](url-state-codec.md) | The versioned, per-field URL state codec: registration mechanism, versioning/degrade behaviour, and exactly what later phases are allowed to touch (phase 5) |
+| [playground-controls.md](playground-controls.md) | The transport control, reset-to-defaults, realism unlock, permalink and preset menu (phase 10, F7.1–F7.5) |
 
 ## Concepts
 
@@ -41,8 +47,8 @@ placeholder — Path, Timeline and Explore still are.
 ## Known gaps
 
 - **No component sidecars for the ported kit.** Studio's own `<Component>.md` sidecar files were not copied (Slice 1 only ports `.tsx` + `.module.css`, per this phase's plan) — Studio's own docs, same component names, are the closest reference until this repo's copies diverge enough to need their own. `AppChrome.tsx` and `SurfaceLayout.tsx`, both new to this repo, do **not** yet have sidecars either — worth adding once phase 6/7 exercise their reserved-slot props in earnest.
-- **`useViewerUrlState` was unused until phase 7.** The hook exists (`src/app/hooks/useViewerUrlState.ts`); `ConditionsBar` (phase 7) is its first caller, writing `conditions`/`bandId` (debounced for the time-scrub field). `surface` navigation is still entirely pathname-driven (`react-router-dom`'s routes), not query-string-driven, and Station (phase 6) still doesn't write to the URL live — see [url-state-codec.md](url-state-codec.md) and [Conditions](../conditions/README.md) for the reasoning.
-- **`ViewerStateProvider` doesn't sync back to the URL.** It reads `surface` from `location.search` once, on mount, so a shared link's surface is respected on first paint — but nothing pushes runtime state changes back into the address bar yet (there's nothing to push: `surface` is the only field, and it's driven by route changes, not by `ViewerState`). This is explicitly left as "a later phase's own concern" by this phase's plan file.
+- **`useViewerUrlState` was unused until phase 7.** The hook exists (`src/app/hooks/useViewerUrlState.ts`); `ConditionsBar` (phase 7) is its first caller, writing `conditions`/`bandId` (debounced for the time-scrub field). `surface` navigation is still entirely pathname-driven (`react-router-dom`'s routes), not query-string-driven — a shared link's `s` param decodes into `ViewerState.surface` but nothing reads that field to navigate (phase 10's `ShareButton` sidesteps this by building the share URL from the current `pathname`, per [playground-controls.md](playground-controls.md)'s own Slice 4 known-gaps note). Station (phase 6) still doesn't write to the URL LIVE (still localStorage-only) — but phase 10's `ShareButton` now builds a complete, correct Station override into a share URL on demand, and a shared link's Station override is now actually applied on load (previously decoded and silently discarded — see [playground-controls.md](playground-controls.md)'s own Slice 4 section).
+- **`ViewerStateProvider` doesn't sync back to the URL on every change.** It reads the full `ViewerUrlState` once, on mount (phase 10 extended this to apply `station`/`playback.unrealismUnlocked`, not just `surface`/`bandId`/`target`/`globe` as before) — but nothing pushes runtime state changes back into the address bar continuously; phase 10's `ShareButton` instead builds a complete URL on demand, when the operator asks for one, rather than keeping the address bar itself live-synced.
 
 ## Cross-links
 
