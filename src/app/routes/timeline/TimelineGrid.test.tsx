@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { UK_AMATEUR_BANDS } from '@core/domain/bandCatalog';
 import type { TimelineCell } from '@core/domain/propagation/timelineGrid';
 import TimelineGrid from './TimelineGrid.tsx';
+import classes from './TimelineGrid.module.css';
 
 function buildCells(
   reliabilityForHour: (bandId: string, hourUtc: number) => number,
@@ -64,5 +65,28 @@ describe('TimelineGrid', () => {
 
     fireEvent.click(screen.getByLabelText(/40 m at 15z/));
     expect(onSelectHour).toHaveBeenCalledWith(15);
+  });
+
+  // Slice 4 (F3.4's standing mobile constraint) -- the wrapper scrolls
+  // horizontally and the band-label column stays sticky/left-pinned; a
+  // real 360px-wide visual check (no overflow, touch targets legible) is
+  // a browser-rendering concern this jsdom test can't observe directly
+  // (`vite.config.ts`'s test config doesn't inject real stylesheet
+  // layout), so this only guards the STRUCTURAL contract the CSS module
+  // relies on: a `.scroll` wrapper with `.bandLabel`/`.cornerHeader`
+  // headers still present and still `<th>` elements (so `position:
+  // sticky; left: 0` still has something to pin).
+  it('keeps a horizontally-scrolling wrapper with sticky band-label/corner headers (Slice 4, F3.4)', () => {
+    const cells = buildCells(() => 0.5);
+    const { container } = render(
+      <TimelineGrid cells={cells} currentHourUtc={0} onSelectHour={() => {}} />,
+    );
+
+    const scrollWrapper = container.querySelector(`.${classes.scroll}`);
+    expect(scrollWrapper).not.toBeNull();
+    expect(scrollWrapper?.querySelector(`.${classes.cornerHeader}`)?.tagName).toBe('TH');
+    const bandLabelHeaders = scrollWrapper?.querySelectorAll(`.${classes.bandLabel}`) ?? [];
+    expect(bandLabelHeaders).toHaveLength(UK_AMATEUR_BANDS.length);
+    for (const header of bandLabelHeaders) expect(header.tagName).toBe('TH');
   });
 });
