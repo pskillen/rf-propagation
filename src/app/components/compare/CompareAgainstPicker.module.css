@@ -1,0 +1,44 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.antennaList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.antennaButton {
+  border: 1px solid var(--dsv2-border);
+  background: var(--dsv2-surface);
+  color: var(--mantine-color-text);
+  border-radius: 0.375rem;
+  padding: 0.375rem 0.625rem;
+  text-align: left;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.antennaButtonSelected {
+  border-color: var(--dsv2-accent, #4c8bf5);
+  background: var(--dsv2-surface-quiet);
+}
+
+.timeRow {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.timeLabel {
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.emptyNote {
+  font-size: 0.8125rem;
+  color: var(--mantine-color-dimmed);
+  margin: 0;
+}
