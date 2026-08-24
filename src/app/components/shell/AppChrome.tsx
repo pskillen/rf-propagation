@@ -1,6 +1,12 @@
 import type { ReactNode } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { IconClock, IconRoute, IconTelescope, IconWorld } from '@tabler/icons-react';
+import {
+  IconClock,
+  IconGitCompare,
+  IconRoute,
+  IconTelescope,
+  IconWorld,
+} from '@tabler/icons-react';
 import BuildFooter from '../BuildFooter/BuildFooter.tsx';
 import { BottomTabBar } from '../v2/index.ts';
 import { ICON_SIZE_NAV, ICON_STROKE } from '../../lib/iconSizes.ts';
@@ -38,6 +44,7 @@ const NAV_ITEMS: readonly NavItem[] = [
   { id: 'path', label: 'Path', path: '/path' },
   { id: 'timeline', label: 'Timeline', path: '/timeline' },
   { id: 'explore', label: 'Explore', path: '/explore' },
+  { id: 'compare', label: 'Compare', path: '/compare' },
 ];
 
 const NAV_ICONS: Record<string, ReactNode> = {
@@ -45,6 +52,7 @@ const NAV_ICONS: Record<string, ReactNode> = {
   path: <IconRoute size={ICON_SIZE_NAV} stroke={ICON_STROKE} aria-hidden />,
   timeline: <IconClock size={ICON_SIZE_NAV} stroke={ICON_STROKE} aria-hidden />,
   explore: <IconTelescope size={ICON_SIZE_NAV} stroke={ICON_STROKE} aria-hidden />,
+  compare: <IconGitCompare size={ICON_SIZE_NAV} stroke={ICON_STROKE} aria-hidden />,
 };
 
 /**

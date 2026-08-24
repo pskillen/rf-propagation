@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { destinationPoint, type GeoPoint } from '@core/domain/propagation/greatCircle';
-import { haversineDistanceKm, initialBearingDeg } from './bearingDistance.ts';
+import {
+  compassOctant,
+  formatBearing,
+  formatDistanceKmAndMi,
+  haversineDistanceKm,
+  initialBearingDeg,
+} from './bearingDistance.ts';
 
 const LONDON: GeoPoint = { latDeg: 51.5074, lonDeg: -0.1278 };
 
@@ -33,5 +39,35 @@ describe('haversineDistanceKm / initialBearingDeg', () => {
     expect(initialBearingDeg(LONDON, north)).toBeGreaterThanOrEqual(0);
     expect(initialBearingDeg(LONDON, north)).toBeLessThan(360);
     expect(initialBearingDeg(LONDON, south)).toBeCloseTo(180, 3);
+  });
+});
+
+describe('compassOctant', () => {
+  it('maps cardinal and intercardinal bearings to the nearest of 8 points', () => {
+    expect(compassOctant(0)).toBe('N');
+    expect(compassOctant(45)).toBe('NE');
+    expect(compassOctant(90)).toBe('E');
+    expect(compassOctant(135)).toBe('SE');
+    expect(compassOctant(180)).toBe('S');
+    expect(compassOctant(225)).toBe('SW');
+    expect(compassOctant(270)).toBe('W');
+    expect(compassOctant(315)).toBe('NW');
+  });
+
+  it('wraps a bearing just under 360 back to N', () => {
+    expect(compassOctant(359)).toBe('N');
+  });
+});
+
+describe('formatDistanceKmAndMi', () => {
+  it('formats km and mi with thousands separators', () => {
+    expect(formatDistanceKmAndMi(3238)).toBe('3,238 km (2,012 mi)');
+  });
+});
+
+describe('formatBearing', () => {
+  it('pads to three digits and appends the compass point', () => {
+    expect(formatBearing(42)).toBe('042°T · NE');
+    expect(formatBearing(0)).toBe('000°T · N');
   });
 });

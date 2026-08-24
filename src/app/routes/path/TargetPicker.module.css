@@ -1,0 +1,56 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.resolved {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  background: var(--v2-surface-raised, rgba(255, 255, 255, 0.04));
+}
+
+.resolvedTop {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.resolvedCoords {
+  font-weight: 600;
+}
+
+.resolvedLine {
+  font-size: 0.85rem;
+  opacity: 0.85;
+}
+
+.modes {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.row {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.5rem;
+}
+
+.coordFields {
+  display: flex;
+  gap: 0.5rem;
+  flex: 1;
+}
+
+.error {
+  font-size: 0.8rem;
+  color: var(--v2-color-danger, #e03131);
+}
+
+.map {
+  min-height: 220px;
+}

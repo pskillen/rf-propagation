@@ -14,10 +14,12 @@
  */
 import type { Station } from '@core/domain/station/types';
 import type { Conditions } from '@core/domain/conditions/types';
+import { DEFAULT_COMPARE_STATE } from '@core/domain/propagation/compareScenario';
 import type { ViewerState } from '../../state/viewerState.tsx';
 import { DEFAULT_GLOBE_TOGGLES } from '../../state/globeToggles.ts';
 import { DEFAULT_PLAYBACK } from '../../state/playback.ts';
 import { DEFAULT_RAY_CONTROLS } from '../../state/rayControls.ts';
+import { DEFAULT_TIMELINE_STATE } from '../../state/timeline.ts';
 import { DEFAULT_STATION } from '@core/domain/station/defaults';
 import type { ConditionsUrlState, StationUrlState, ViewerUrlState } from './types.ts';
 
@@ -118,5 +120,22 @@ export function viewerStateToUrlState(state: ViewerState): ViewerUrlState {
         soloLayerId: rc.soloLayerId,
       };
     })(),
+    compare: {
+      enabled:
+        state.compare.enabled !== DEFAULT_COMPARE_STATE.enabled ? state.compare.enabled : undefined,
+      againstAntennaId: state.compare.againstAntennaId,
+      againstBandId: state.compare.againstBandId,
+      againstAtMs: state.compare.againstAtMs,
+    },
+    timeline: {
+      referenceDistanceKm:
+        state.timeline.referenceDistanceKm !== DEFAULT_TIMELINE_STATE.referenceDistanceKm
+          ? state.timeline.referenceDistanceKm
+          : undefined,
+      referenceBearingDeg:
+        state.timeline.referenceBearingDeg !== DEFAULT_TIMELINE_STATE.referenceBearingDeg
+          ? state.timeline.referenceBearingDeg
+          : undefined,
+    },
   };
 }

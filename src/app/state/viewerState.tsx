@@ -5,21 +5,27 @@ import { coordsToLocator } from '@core/domain/maidenhead';
 import type { Conditions } from '@core/domain/conditions/types';
 import { DEFAULT_CONDITIONS } from '@core/domain/conditions/defaults';
 import { bandMidpointMhz } from '@core/domain/bandCatalog';
+import { DEFAULT_COMPARE_STATE, type CompareState } from '@core/domain/propagation/compareScenario';
 import { loadStation } from '@integrations/station/persistence';
 import { decodeViewerUrlState } from '../lib/urlState/codec.ts';
 import type { StationUrlState, SurfaceId } from '../lib/urlState/types.ts';
 import { DEFAULT_GLOBE_TOGGLES, type GlobeToggles } from './globeToggles.ts';
 import { DEFAULT_PLAYBACK, type PlaybackState } from './playback.ts';
 import { DEFAULT_RAY_CONTROLS, type RayControlsState } from './rayControls.ts';
+import { DEFAULT_TIMELINE_STATE, type TimelineState } from './timeline.ts';
 
 /**
  * `ViewerState.target`'s source — how the operator set the current target.
- * Only `'map-click'` exists yet (Reach's Slice 5, phase 8); Path's own
- * target picker (phase 13, F5.5's own cross-phase note) adds
- * locator/coordinates/place-name entry as additional source values on top
- * of this, not a replacement for it.
+ * `'map-click'` is Reach's own click-to-target (Slice 5, phase 8);
+ * `'coordinates'` | `'locator'` | `'address'` are Path's own target
+ * picker's three entry modes (phase 13, F10.1); `'map'` | `'globe'` are a
+ * draggable target marker committed on either surface's map/globe (phase
+ * 13, F10.1's "draggable on both map and globe" AC) — distinct from
+ * `'map-click'` since a drag-commit and a plain click are different
+ * gestures worth telling apart in principle, even though nothing in this
+ * phase currently branches on the difference.
  */
-export type TargetSource = 'map-click';
+export type TargetSource = 'map-click' | 'coordinates' | 'locator' | 'address' | 'map' | 'globe';
 
 /** A recorded target — `ViewerState.target === null` means Reach (no target); non-null means Path (FR-14). */
 export interface Target {
@@ -97,6 +103,10 @@ export interface ViewerState {
   display: DisplayState;
   /** Transport-control play/pause/speed and the realism-unlock flag (F7.1/F7.3, phase 10). */
   playback: PlaybackState;
+  /** Compare's own state (F9.1, phase 12) — see `@core/domain/propagation/compareScenario`'s own doc comment for why this type lives in `core` rather than alongside `GlobeToggles`/`RayControlsState`. */
+  compare: CompareState;
+  /** Timeline's own reference distance/bearing, used only when `target === null` (F11.1, phase 14) — see `./timeline.ts`'s own doc comment. */
+  timeline: TimelineState;
 }
 
 export interface ViewerStateContextValue {
@@ -187,6 +197,26 @@ function initialViewerState(): ViewerState {
     playback: {
       ...DEFAULT_PLAYBACK,
       unrealismUnlocked: decoded.playback.unrealismUnlocked ?? DEFAULT_PLAYBACK.unrealismUnlocked,
+    },
+    // Same "each field its own `??` fallback" contract as globeToggles/
+    // rayControls above (phase 12, F9.1) -- decoded.compare always has
+    // every key present (possibly `undefined`), so a blind spread would
+    // still clobber DEFAULT_COMPARE_STATE's real values with those
+    // `undefined`s.
+    compare: {
+      enabled: decoded.compare.enabled ?? DEFAULT_COMPARE_STATE.enabled,
+      againstAntennaId: decoded.compare.againstAntennaId ?? DEFAULT_COMPARE_STATE.againstAntennaId,
+      againstBandId: decoded.compare.againstBandId ?? DEFAULT_COMPARE_STATE.againstBandId,
+      againstAtMs: decoded.compare.againstAtMs ?? DEFAULT_COMPARE_STATE.againstAtMs,
+    },
+    // Same "each field its own `??` fallback" contract as globeToggles/
+    // rayControls/compare above (phase 14, F11.1) -- decoded.timeline
+    // always has every key present (possibly `undefined`).
+    timeline: {
+      referenceDistanceKm:
+        decoded.timeline.referenceDistanceKm ?? DEFAULT_TIMELINE_STATE.referenceDistanceKm,
+      referenceBearingDeg:
+        decoded.timeline.referenceBearingDeg ?? DEFAULT_TIMELINE_STATE.referenceBearingDeg,
     },
   };
 }

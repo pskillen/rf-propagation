@@ -1,0 +1,41 @@
+.root {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.root th,
+.root td {
+  padding: 0.375rem 0.5rem;
+  text-align: left;
+  border-bottom: 1px solid var(--dsv2-border);
+}
+
+.bucketLabel {
+  color: var(--mantine-color-dimmed);
+  font-size: 0.75rem;
+}
+
+.bucket-good {
+  color: #2f9e44;
+}
+
+.bucket-marginal {
+  color: #e8590c;
+}
+
+.bucket-unlikely {
+  color: #e03131;
+}
+
+.delta {
+  font-weight: 600;
+}
+
+.deltaUp {
+  color: #2f9e44;
+}
+
+.deltaDown {
+  color: #e03131;
+}

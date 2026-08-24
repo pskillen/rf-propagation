@@ -48,3 +48,34 @@ export function initialBearingDeg(from: GeoPoint, to: GeoPoint): number {
   const bearingDeg = Math.atan2(y, x) * RAD_TO_DEG;
   return (bearingDeg + 360) % 360;
 }
+
+const COMPASS_OCTANTS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'] as const;
+
+/**
+ * One of the 16 compass points nearest `bearingDeg` — ported in shape
+ * from Codeplug Studio's `geoDistance.ts`'s `compassOctant`, ADAPTED to
+ * this repo's own 8-point set (`bearingDistance.ts` has no existing
+ * 16-point table to extend, and Path's own "resolved bearing shown back"
+ * requirement, F10.1, doesn't specify 16-point precision — 8 points is
+ * legible at a glance, which is the point of showing this at all).
+ */
+export function compassOctant(bearingDeg: number): string {
+  const normalised = ((bearingDeg % 360) + 360) % 360;
+  const index = Math.round(normalised / 45) % COMPASS_OCTANTS.length;
+  return COMPASS_OCTANTS[index]!;
+}
+
+const KM_PER_MI = 1.609344;
+
+/** `"3,238 km (2,012 mi)"` — great-circle distance shown in both units, per F10.1's resolved-target readout. */
+export function formatDistanceKmAndMi(km: number): string {
+  const mi = km / KM_PER_MI;
+  return `${Math.round(km).toLocaleString()} km (${Math.round(mi).toLocaleString()} mi)`;
+}
+
+/** `"042°T · NE"` — bearing shown back to the operator, per F10.1's resolved-target readout. */
+export function formatBearing(bearingDeg: number): string {
+  const normalised = ((bearingDeg % 360) + 360) % 360;
+  const padded = String(Math.round(normalised)).padStart(3, '0');
+  return `${padded}°T · ${compassOctant(normalised)}`;
+}

@@ -7,7 +7,7 @@ import {
   type ViewerUrlState,
 } from './types.ts';
 
-const ALL_SURFACES: readonly SurfaceId[] = ['reach', 'path', 'timeline', 'explore'];
+const ALL_SURFACES: readonly SurfaceId[] = ['reach', 'path', 'timeline', 'explore', 'compare'];
 
 const EMPTY_CONDITIONS: ViewerUrlState['conditions'] = {
   t: undefined,
@@ -41,6 +41,18 @@ const EMPTY_EXPLORE: ViewerUrlState['explore'] = {
   soloLayerId: undefined,
 };
 
+const EMPTY_COMPARE: ViewerUrlState['compare'] = {
+  enabled: undefined,
+  againstAntennaId: undefined,
+  againstBandId: undefined,
+  againstAtMs: undefined,
+};
+
+const EMPTY_TIMELINE: ViewerUrlState['timeline'] = {
+  referenceDistanceKm: undefined,
+  referenceBearingDeg: undefined,
+};
+
 describe('viewer URL state codec', () => {
   it.each(ALL_SURFACES)('round-trips surface=%s', (surface) => {
     const state: ViewerUrlState = {
@@ -51,6 +63,8 @@ describe('viewer URL state codec', () => {
       globe: {},
       playback: {},
       explore: {},
+      compare: {},
+      timeline: {},
     };
     const roundTripped = decodeViewerUrlState(encodeViewerUrlState(state));
     expect(roundTripped).toEqual({
@@ -59,6 +73,8 @@ describe('viewer URL state codec', () => {
       globe: EMPTY_GLOBE,
       playback: EMPTY_PLAYBACK,
       explore: EMPTY_EXPLORE,
+      compare: EMPTY_COMPARE,
+      timeline: EMPTY_TIMELINE,
     });
   });
 
@@ -82,6 +98,8 @@ describe('viewer URL state codec', () => {
       globe: EMPTY_GLOBE,
       playback: EMPTY_PLAYBACK,
       explore: EMPTY_EXPLORE,
+      compare: EMPTY_COMPARE,
+      timeline: EMPTY_TIMELINE,
     });
   });
 
@@ -99,6 +117,8 @@ describe('viewer URL state codec', () => {
       globe: {},
       playback: {},
       explore: {},
+      compare: {},
+      timeline: {},
     });
     expect(params.has('s')).toBe(false);
     expect(params.get('v')).toBe('1');
@@ -113,6 +133,8 @@ describe('viewer URL state codec', () => {
       globe: {},
       playback: {},
       explore: {},
+      compare: {},
+      timeline: {},
     });
     expect(params.get('s')).toBe('timeline');
   });
@@ -126,6 +148,8 @@ describe('viewer URL state codec', () => {
       globe: {},
       playback: {},
       explore: {},
+      compare: {},
+      timeline: {},
     };
     const roundTripped = decodeViewerUrlState(encodeViewerUrlState(state));
     expect(roundTripped).toEqual({
@@ -136,6 +160,8 @@ describe('viewer URL state codec', () => {
       globe: EMPTY_GLOBE,
       playback: EMPTY_PLAYBACK,
       explore: EMPTY_EXPLORE,
+      compare: EMPTY_COMPARE,
+      timeline: EMPTY_TIMELINE,
     });
   });
 
@@ -148,6 +174,8 @@ describe('viewer URL state codec', () => {
       globe: { exaggerationFactor: 3, mapMode: 'globe' },
       playback: {},
       explore: {},
+      compare: {},
+      timeline: {},
     };
     const roundTripped = decodeViewerUrlState(encodeViewerUrlState(state));
     expect(roundTripped).toEqual({
@@ -162,6 +190,8 @@ describe('viewer URL state codec', () => {
       },
       playback: EMPTY_PLAYBACK,
       explore: EMPTY_EXPLORE,
+      compare: EMPTY_COMPARE,
+      timeline: EMPTY_TIMELINE,
     });
   });
 
@@ -174,6 +204,8 @@ describe('viewer URL state codec', () => {
       globe: {},
       playback: { unrealismUnlocked: true },
       explore: {},
+      compare: {},
+      timeline: {},
     };
     const roundTripped = decodeViewerUrlState(encodeViewerUrlState(state));
     expect(roundTripped).toEqual({
@@ -184,6 +216,8 @@ describe('viewer URL state codec', () => {
       globe: EMPTY_GLOBE,
       playback: { unrealismUnlocked: true },
       explore: EMPTY_EXPLORE,
+      compare: EMPTY_COMPARE,
+      timeline: EMPTY_TIMELINE,
     });
   });
 
@@ -211,6 +245,8 @@ describe('viewer URL state codec', () => {
         colourBy: 'layer',
         soloLayerId: 'F2',
       },
+      compare: {},
+      timeline: {},
     };
     const roundTripped = decodeViewerUrlState(encodeViewerUrlState(state));
     expect(roundTripped).toEqual({
@@ -221,6 +257,8 @@ describe('viewer URL state codec', () => {
       globe: EMPTY_GLOBE,
       playback: EMPTY_PLAYBACK,
       explore: state.explore,
+      compare: EMPTY_COMPARE,
+      timeline: EMPTY_TIMELINE,
     });
   });
 
@@ -228,5 +266,74 @@ describe('viewer URL state codec', () => {
     expect(() => decodeViewerUrlState(new URLSearchParams('v=1&s=path'))).not.toThrow();
     const decoded = decodeViewerUrlState(new URLSearchParams('v=1&s=path'));
     expect(decoded.explore).toEqual(EMPTY_EXPLORE);
+  });
+
+  it('round-trips a compare override (phase 12, Slice 1) alongside other fields', () => {
+    const state: ViewerUrlState = {
+      surface: 'compare',
+      station: {},
+      conditions: {},
+      bandId: DEFAULT_BAND_ID,
+      globe: {},
+      playback: {},
+      explore: {},
+      compare: {
+        enabled: true,
+        againstAntennaId: 'ant-2',
+        againstBandId: '20m',
+        againstAtMs: 1_700_000_000_000,
+      },
+      timeline: {},
+    };
+    const roundTripped = decodeViewerUrlState(encodeViewerUrlState(state));
+    expect(roundTripped).toEqual({
+      surface: 'compare',
+      station: {},
+      conditions: EMPTY_CONDITIONS,
+      bandId: DEFAULT_BAND_ID,
+      globe: EMPTY_GLOBE,
+      playback: EMPTY_PLAYBACK,
+      explore: EMPTY_EXPLORE,
+      compare: state.compare,
+      timeline: EMPTY_TIMELINE,
+    });
+  });
+
+  it('a URL missing the compare param entirely degrades to the default, not a throw', () => {
+    expect(() => decodeViewerUrlState(new URLSearchParams('v=1&s=path'))).not.toThrow();
+    const decoded = decodeViewerUrlState(new URLSearchParams('v=1&s=path'));
+    expect(decoded.compare).toEqual(EMPTY_COMPARE);
+  });
+
+  it('round-trips a Timeline reference distance/bearing override (phase 14, F11.1) alongside other fields', () => {
+    const state: ViewerUrlState = {
+      surface: 'timeline',
+      station: {},
+      conditions: {},
+      bandId: DEFAULT_BAND_ID,
+      globe: {},
+      playback: {},
+      explore: {},
+      compare: {},
+      timeline: { referenceDistanceKm: 5000, referenceBearingDeg: 45 },
+    };
+    const roundTripped = decodeViewerUrlState(encodeViewerUrlState(state));
+    expect(roundTripped).toEqual({
+      surface: 'timeline',
+      station: {},
+      conditions: EMPTY_CONDITIONS,
+      bandId: DEFAULT_BAND_ID,
+      globe: EMPTY_GLOBE,
+      playback: EMPTY_PLAYBACK,
+      explore: EMPTY_EXPLORE,
+      compare: EMPTY_COMPARE,
+      timeline: state.timeline,
+    });
+  });
+
+  it('a URL missing the timeline param entirely degrades to the default, not a throw', () => {
+    expect(() => decodeViewerUrlState(new URLSearchParams('v=1&s=path'))).not.toThrow();
+    const decoded = decodeViewerUrlState(new URLSearchParams('v=1&s=path'));
+    expect(decoded.timeline).toEqual(EMPTY_TIMELINE);
   });
 });

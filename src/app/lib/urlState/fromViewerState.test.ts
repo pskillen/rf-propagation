@@ -4,6 +4,8 @@ import { DEFAULT_CONDITIONS } from '@core/domain/conditions/defaults';
 import { DEFAULT_GLOBE_TOGGLES } from '../../state/globeToggles.ts';
 import { DEFAULT_PLAYBACK } from '../../state/playback.ts';
 import { DEFAULT_RAY_CONTROLS } from '../../state/rayControls.ts';
+import { DEFAULT_COMPARE_STATE } from '@core/domain/propagation/compareScenario';
+import { DEFAULT_TIMELINE_STATE } from '../../state/timeline.ts';
 import type { ViewerState } from '../../state/viewerState.tsx';
 import { encodeViewerUrlState } from './codec.ts';
 import { viewerStateToUrlState } from './fromViewerState.ts';
@@ -18,6 +20,8 @@ function baseViewerState(): ViewerState {
     target: null,
     display: { globeToggles: DEFAULT_GLOBE_TOGGLES, rayControls: DEFAULT_RAY_CONTROLS },
     playback: DEFAULT_PLAYBACK,
+    compare: DEFAULT_COMPARE_STATE,
+    timeline: DEFAULT_TIMELINE_STATE,
   };
 }
 
@@ -108,5 +112,13 @@ describe('viewerStateToUrlState', () => {
     state.playback = { ...DEFAULT_PLAYBACK, unrealismUnlocked: true };
     const params = encodeViewerUrlState(viewerStateToUrlState(state));
     expect(params.get('ru')).toBe('1');
+  });
+
+  it('encodes a non-default Timeline reference distance/bearing (phase 14, F11.1)', () => {
+    const state = baseViewerState();
+    state.timeline = { referenceDistanceKm: 5000, referenceBearingDeg: 45 };
+    const params = encodeViewerUrlState(viewerStateToUrlState(state));
+    expect(params.get('trk')).toBe('5000');
+    expect(params.get('trb')).toBe('45');
   });
 });

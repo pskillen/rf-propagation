@@ -1,0 +1,112 @@
+/**
+ * Horizontally-scrollable 24-hour x band grid — sticky band-label column
+ * per this phase's Slice 4 (F3.4's standing mobile constraint). Matches
+ * `MOBILE_MAX_WIDTH_MEDIA_QUERY` from `src/app/lib/breakpoints.ts`
+ * (duplicated as a literal media query, same convention as
+ * `SurfaceLayout.module.css` — CSS modules can't reference a JS constant
+ * directly).
+ */
+.scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  border: 1px solid var(--dsv2-border, rgba(255, 255, 255, 0.08));
+  border-radius: var(--dsv2-radius-panel, 0.75rem);
+}
+
+.table {
+  border-collapse: separate;
+  border-spacing: 2px;
+  width: 100%;
+}
+
+.cornerHeader,
+.bandLabel {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: var(--dsv2-surface, #16181d);
+  text-align: left;
+  padding: 0.4rem 0.6rem;
+  font-size: var(--dsv2-font-body-sm, 0.8rem);
+  white-space: nowrap;
+}
+
+.cornerHeader {
+  z-index: 3;
+  color: var(--dsv2-text-tertiary, rgba(255, 255, 255, 0.5));
+  font-weight: 600;
+}
+
+.bandLabel {
+  font-weight: 700;
+  color: var(--dsv2-text-primary, inherit);
+}
+
+.hourHeader {
+  min-width: 44px;
+  padding: 0.3rem 0.2rem;
+  font-size: var(--dsv2-font-micro, 0.7rem);
+  color: var(--dsv2-text-secondary, rgba(255, 255, 255, 0.7));
+  text-align: center;
+  white-space: nowrap;
+}
+
+.hourUtc {
+  display: block;
+  font-weight: 600;
+}
+
+.hourLocal {
+  display: block;
+  opacity: 0.7;
+  font-size: 0.65rem;
+}
+
+.currentHour {
+  outline: 2px solid var(--dsv2-accent, #4263eb);
+  outline-offset: -1px;
+}
+
+.cellWrap {
+  padding: 0;
+}
+
+.cellButton {
+  display: block;
+  width: 100%;
+  min-width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 0.3rem;
+  cursor: pointer;
+  padding: 0;
+}
+
+.cellButton:focus-visible {
+  outline: 2px solid var(--dsv2-accent, #4263eb);
+  outline-offset: 1px;
+}
+
+.selected {
+  box-shadow: inset 0 0 0 2px var(--dsv2-accent, #4263eb);
+}
+
+/* Same good/marginal/unlikely palette as Path's VerdictTable.module.css (phase 13) -- see this file's own doc comment for why it's reused rather than reinvented. */
+.cell-good {
+  background: rgba(64, 192, 87, 0.55);
+}
+
+.cell-marginal {
+  background: rgba(250, 176, 5, 0.55);
+}
+
+.cell-unlikely {
+  background: rgba(224, 49, 49, 0.35);
+}
+
+@media (max-width: 48em) {
+  .hourLocal {
+    display: none;
+  }
+}

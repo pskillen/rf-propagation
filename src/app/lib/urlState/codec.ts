@@ -7,6 +7,8 @@ import { targetFieldCodec } from './fields/target.ts';
 import { globeFieldCodec } from './fields/globe.ts';
 import { playbackFieldCodec } from './fields/playback.ts';
 import { exploreFieldCodec } from './fields/explore.ts';
+import { compareFieldCodec } from './fields/compare.ts';
+import { timelineFieldCodec } from './fields/timeline.ts';
 
 export interface UrlStateFieldCodec<K extends keyof ViewerUrlState> {
   key: K;
@@ -18,7 +20,8 @@ export interface UrlStateFieldCodec<K extends keyof ViewerUrlState> {
 // Phase 6 appends stationFieldCodec; phase 7 appends conditionsFieldCodec and
 // bandFieldCodec; phase 8 appends targetFieldCodec; phase 9 appends
 // globeFieldCodec; phase 10 appends playbackFieldCodec; phase 11 appends
-// exploreFieldCodec. Each codec's own
+// exploreFieldCodec; phase 12 appends compareFieldCodec; phase 14 appends
+// timelineFieldCodec. Each codec's own
 // encode/decode logic lives in its own file under ./fields/ and is written
 // once.
 //
@@ -36,6 +39,8 @@ const FIELD_CODECS: UrlStateFieldCodec<any>[] = [
   globeFieldCodec,
   playbackFieldCodec,
   exploreFieldCodec,
+  compareFieldCodec,
+  timelineFieldCodec,
 ];
 
 export function encodeViewerUrlState(state: ViewerUrlState): URLSearchParams {

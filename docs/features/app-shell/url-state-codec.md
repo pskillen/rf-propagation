@@ -57,20 +57,25 @@ loading.
 
 ## Fields so far
 
-| Field                 | Type                                           | Added                    | Codec                                                                                                                                          |
-| --------------------- | ---------------------------------------------- | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| `surface`             | `'reach' \| 'path' \| 'timeline' \| 'explore'` | Phase 5                  | [`fields/surface.ts`](../../../src/app/lib/urlState/fields/surface.ts)                                                                         |
-| `station`             | `StationUrlState`                              | Phase 6                  | [`fields/station.ts`](../../../src/app/lib/urlState/fields/station.ts)                                                                         |
-| `conditions`/`bandId` | `ConditionsUrlState` / `string`                | Phase 7                  | [`fields/conditions.ts`](../../../src/app/lib/urlState/fields/conditions.ts), [`fields/band.ts`](../../../src/app/lib/urlState/fields/band.ts) |
-| `target`              | `TargetUrlState \| undefined`                  | Phase 8                  | [`fields/target.ts`](../../../src/app/lib/urlState/fields/target.ts)                                                                           |
-| `globe`               | `GlobeUrlState`                                | Phase 9                  | [`fields/globe.ts`](../../../src/app/lib/urlState/fields/globe.ts)                                                                             |
-| `playback`            | `PlaybackUrlState` (`unrealismUnlocked` only)  | Phase 10 (Slice 4, F7.4) | [`fields/playback.ts`](../../../src/app/lib/urlState/fields/playback.ts)                                                                       |
+| Field                 | Type                                                        | Added                    | Codec                                                                                                                                          |
+| --------------------- | ----------------------------------------------------------- | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `surface`             | `'reach' \| 'path' \| 'timeline' \| 'explore' \| 'compare'` | Phase 5                  | [`fields/surface.ts`](../../../src/app/lib/urlState/fields/surface.ts)                                                                         |
+| `station`             | `StationUrlState`                                           | Phase 6                  | [`fields/station.ts`](../../../src/app/lib/urlState/fields/station.ts)                                                                         |
+| `conditions`/`bandId` | `ConditionsUrlState` / `string`                             | Phase 7                  | [`fields/conditions.ts`](../../../src/app/lib/urlState/fields/conditions.ts), [`fields/band.ts`](../../../src/app/lib/urlState/fields/band.ts) |
+| `target`              | `TargetUrlState \| undefined`                               | Phase 8                  | [`fields/target.ts`](../../../src/app/lib/urlState/fields/target.ts)                                                                           |
+| `globe`               | `GlobeUrlState`                                             | Phase 9                  | [`fields/globe.ts`](../../../src/app/lib/urlState/fields/globe.ts)                                                                             |
+| `playback`            | `PlaybackUrlState` (`unrealismUnlocked` only)               | Phase 10 (Slice 4, F7.4) | [`fields/playback.ts`](../../../src/app/lib/urlState/fields/playback.ts)                                                                       |
+| `compare`             | `CompareUrlState` (`cmp`/`cant`/`cband`/`cat`)              | Phase 12                 | [`fields/compare.ts`](../../../src/app/lib/urlState/fields/compare.ts)                                                                         |
+| `timeline`            | `TimelineUrlState` (`trk`/`trb`)                            | Phase 14                 | [`fields/timeline.ts`](../../../src/app/lib/urlState/fields/timeline.ts)                                                                       |
 
 `playback.playing`/`speedMultiplier` deliberately never round-trip
 (playback state is explicitly never persisted — see
-[playground-controls.md](playground-controls.md)); `compare` (phase 12)
-is the one remaining field from the product doc set's UX/IA state model
-not yet registered.
+[playground-controls.md](playground-controls.md)). `compare` (phase 12)
+was the last remaining field from the product doc set's UX/IA
+_documented_ state model; `timeline` (phase 14) is a field the design
+docs never specified at all — Timeline's own reference distance/bearing,
+needed only when no target is set — added by that phase's own plan file,
+not a projection from `ux-and-ia.md §6`.
 
 Phase 10 (Slice 4, F7.4) is also the first phase to build a mapping from
 the FULL `ViewerState` into `ViewerUrlState` (`viewerStateToUrlState`,
