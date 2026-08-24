@@ -1,5 +1,10 @@
 @AGENTS.md
 
+## Rules and skills
+
+- `.claude/rules/*.md` — path-scoped conventions (ported from Codeplug Studio's `.cursor/rules/`, adapted to this repo's domain). Start at [rf-propagation.md](.claude/rules/rf-propagation.md).
+- Skills live in `.skills/` (shared across AI tooling), not under `.claude/skills/`.
+
 ## Multi-phase agents
 
 Project subagents in `.claude/agents/` encode the [multi-phase-plan](.skills/multi-phase-plan/SKILL.md) roles. Do not set a default `agent` in settings — pick one per session:
@@ -19,5 +24,3 @@ claude --agent implementor
 ```
 
 From a normal session, ask Claude to use the named agent. First session after adding `.claude/agents/` may need a restart so the watcher picks up the new directory.
-
-Skills live in `.skills/` (shared across AI tooling), not under `.claude/skills/`.
